@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Platin">
+<meta name="theme-color" content="#0b0d14">
+<meta name="format-detection" content="telephone=no">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icons/icon-180.png">
+<link rel="icon" href="icons/icon-192.png">
+<title>Platin Touch</title>
+<link rel="stylesheet" href="css/style.css">
+<script>
+  (function () {
+    if ('serviceWorker' in navigator && window.isSecureContext) {
+      navigator.serviceWorker.register('sw.js').catch(function () {});
+    }
+  })();
+</script>
+</head>
+<body>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="i-back" viewBox="0 0 24 24"><path fill="currentColor" d="M10.6 5.3a1 1 0 0 1 0 1.4L6.3 11H19a1 1 0 1 1 0 2H6.3l4.3 4.3a1 1 0 1 1-1.4 1.4l-6-6a1 1 0 0 1 0-1.4l6-6a1 1 0 0 1 1.4 0Z"/></symbol>
+    <symbol id="i-ball" viewBox="0 0 24 24"><path fill="currentColor" d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20Zm0 2a8 8 0 0 1 7.9 7h-4.3a3.7 3.7 0 0 0-7.2 0H4.1A8 8 0 0 1 12 4Zm0 6.3a1.7 1.7 0 1 1 0 3.4 1.7 1.7 0 0 1 0-3.4ZM4.1 13h4.3a3.7 3.7 0 0 0 7.2 0h4.3a8 8 0 0 1-15.8 0Z"/></symbol>
+    <symbol id="i-bike" viewBox="0 0 24 24"><path fill="currentColor" d="M15 4a1.5 1.5 0 1 1 0 3 1.5 1.5 0 0 1 0-3Zm-3.6 3.3 2.5 2.9H17v1.8h-3.9l-1.7-2-1.6 1.6 2.2 2.2V19h-1.8v-4.4L7.6 12a1 1 0 0 1 0-1.4l2.4-2.4a1 1 0 0 1 1.4 0ZM5.5 13a3.5 3.5 0 1 1 0 7 3.5 3.5 0 0 1 0-7Zm0 1.6a1.9 1.9 0 1 0 0 3.8 1.9 1.9 0 0 0 0-3.8Zm13-1.6a3.5 3.5 0 1 1 0 7 3.5 3.5 0 0 1 0-7Zm0 1.6a1.9 1.9 0 1 0 0 3.8 1.9 1.9 0 0 0 0-3.8Z"/></symbol>
+    <symbol id="i-ff" viewBox="0 0 24 24"><path fill="currentColor" d="M3 6.5v11a1 1 0 0 0 1.6.8l7-5.5a1 1 0 0 0 0-1.6l-7-5.5A1 1 0 0 0 3 6.5Zm9 0v11a1 1 0 0 0 1.6.8l7-5.5a1 1 0 0 0 0-1.6l-7-5.5A1 1 0 0 0 12 6.5Z"/></symbol>
+    <symbol id="i-gear" viewBox="0 0 24 24"><path fill="currentColor" d="M19.4 13a7.7 7.7 0 0 0 0-2l2-1.6a.5.5 0 0 0 .1-.6l-1.9-3.3a.5.5 0 0 0-.6-.2l-2.4 1a7.4 7.4 0 0 0-1.7-1l-.4-2.5a.5.5 0 0 0-.5-.4h-3.8a.5.5 0 0 0-.5.4l-.4 2.5a7.4 7.4 0 0 0-1.7 1l-2.4-1a.5.5 0 0 0-.6.2L2.6 8.8a.5.5 0 0 0 .1.6l2 1.6a7.7 7.7 0 0 0 0 2l-2 1.6a.5.5 0 0 0-.1.6l1.9 3.3c.1.2.4.3.6.2l2.4-1c.5.4 1.1.7 1.7 1l.4 2.5c0 .2.2.4.5.4h3.8c.3 0 .5-.2.5-.4l.4-2.5c.6-.3 1.2-.6 1.7-1l2.4 1c.2.1.5 0 .6-.2l1.9-3.3a.5.5 0 0 0-.1-.6l-2-1.6ZM12 15.5a3.5 3.5 0 1 1 0-7 3.5 3.5 0 0 1 0 7Z"/></symbol>
+    <symbol id="i-close" viewBox="0 0 24 24"><path fill="currentColor" d="M6.4 5 12 10.6 17.6 5 19 6.4 13.4 12l5.6 5.6-1.4 1.4-5.6-5.6L6.4 19 5 17.6l5.6-5.6L5 6.4 6.4 5Z"/></symbol>
+  </defs>
+</svg>
+
+<div id="app">
+  <div id="ds">
+    <div class="screen" id="topWrap"><canvas id="top" width="256" height="192"></canvas></div>
+    <div id="hinge"></div>
+    <div class="screen" id="botWrap"><canvas id="bot" width="256" height="192"></canvas></div>
+  </div>
+
+  <div id="hint">Ziehen zum Laufen · Oben tippen zum Ansprechen · Unten direkt berühren</div>
+
+  <!-- Gesten: liegt über allem außer der Leiste -->
+  <div id="touch"></div>
+  <div id="stick"><div id="knob"></div></div>
+  <div id="fx"></div>
+
+  <div id="perf" class="hidden"></div>
+
+  <nav id="bar">
+    <button class="tb" id="bBack" data-key="B" aria-label="Zurück">
+      <svg><use href="#i-back"/></svg><span>Zurück</span>
+    </button>
+    <button class="tb main" id="bMenu" data-key="X" aria-label="Menü">
+      <svg><use href="#i-ball"/></svg><span>Menü</span>
+    </button>
+    <button class="tb" id="bY" data-key="Y" aria-label="Item (Y)">
+      <svg><use href="#i-bike"/></svg><span>Item</span>
+    </button>
+    <button class="tb" id="bFF" aria-label="Schneller">
+      <svg><use href="#i-ff"/></svg><span>Tempo</span>
+    </button>
+    <button class="tb" id="bGear" aria-label="Einstellungen">
+      <svg><use href="#i-gear"/></svg><span>Mehr</span>
+    </button>
+  </nav>
+
+  <!-- Einstellungen -->
+  <div id="sheetBack" class="hidden"></div>
+  <section id="sheet" class="hidden" aria-label="Einstellungen">
+    <header>
+      <h2>Einstellungen</h2>
+      <button class="icon" id="sheetClose" aria-label="Schließen"><svg><use href="#i-close"/></svg></button>
+    </header>
+    <div class="sheet-body">
+      <h3>Spielstand</h3>
+      <p class="note">Speichern im Spiel (Menü → SAVE) wird automatisch hier im Browser gesichert.</p>
+      <div class="row btns">
+        <button class="btn" id="stSave">Schnell speichern</button>
+        <button class="btn" id="stLoad">Schnell laden</button>
+      </div>
+      <div class="row btns">
+        <button class="btn" id="savExport">.sav exportieren</button>
+        <button class="btn" id="savImport">.sav importieren</button>
+      </div>
+
+      <h3>Steuerung</h3>
+      <label class="row">Rennen
+        <select id="optRun">
+          <option value="drag">weit ziehen = rennen</option>
+          <option value="always">immer rennen</option>
+          <option value="never">nie rennen</option>
+        </select>
+      </label>
+      <label class="row">Tempo-Knopf
+        <select id="optFF">
+          <option value="2">2-fach</option>
+          <option value="3">3-fach</option>
+          <option value="4">4-fach</option>
+        </select>
+      </label>
+      <div class="row btns small">
+        <button class="btn" data-press="Start">Start</button>
+        <button class="btn" data-press="Select">Select</button>
+        <button class="btn" data-press="A">A</button>
+        <button class="btn" data-press="L">L</button>
+        <button class="btn" data-press="R">R</button>
+      </div>
+
+      <h3>Bild und Ton</h3>
+      <label class="row">Bildrate
+        <select id="optFps">
+          <option value="auto">automatisch</option>
+          <option value="60">immer 60</option>
+          <option value="30">30 (Akku sparen)</option>
+        </select>
+      </label>
+      <label class="row">Bild glätten <input type="checkbox" id="optSmooth"></label>
+      <label class="row">Lautstärke <input type="range" id="optVol" min="0" max="100" step="5"></label>
+      <label class="row">Leistungsanzeige <input type="checkbox" id="optPerf"></label>
+      <label class="row">Beim Öffnen weiterspielen <input type="checkbox" id="optResume"></label>
+
+      <h3>Spiel</h3>
+      <p class="note" id="romInfo">–</p>
+      <div class="row btns">
+        <button class="btn" id="romChange">Andere ROM wählen</button>
+        <button class="btn danger" id="emuReset">Neu starten</button>
+      </div>
+      <p class="note small">Platin Touch · DS-Emulator: DeSmuME (GPL-2.0), siehe vendor/README-desmume.txt</p>
+    </div>
+  </section>
+
+  <!-- Start -->
+  <section id="boot">
+    <div class="boot-card">
+      <div class="logo" aria-hidden="true">
+        <div class="l-top"></div><div class="l-bot"></div>
+      </div>
+      <h1>Platin Touch</h1>
+      <p id="bootMsg">Lade …</p>
+      <div id="bootProgress" class="hidden"><div></div></div>
+      <div id="bootBtns"></div>
+    </div>
+  </section>
+
+  <div id="toast"></div>
+  <input type="file" id="fileRom" hidden>
+  <input type="file" id="fileSav" hidden>
+</div>
+
+<script type="module" src="js/app.js"></script>
+</body>
+</html>

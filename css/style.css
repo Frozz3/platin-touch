@@ -1,0 +1,313 @@
+/* Platin Touch – Oberfläche
+   Hochkant: oben der obere DS-Bildschirm, darunter der Touchscreen, ganz unten eine Leiste.
+   Gesten: Ziehen = Laufen, Tippen oben = auswählen/ansprechen, unten = direkt berühren. */
+
+:root {
+  --bg: #0b0d14;
+  --bg2: #141826;
+  --panel: rgba(24, 28, 42, 0.92);
+  --panel-hi: rgba(170, 160, 255, 0.14);
+  --line: rgba(200, 210, 235, 0.14);
+  --line-strong: rgba(200, 210, 235, 0.3);
+  --text: #eef1fa;
+  --muted: #9aa3bb;
+  --accent: #b4a8ff;
+  --accent-ink: #191433;
+  --silver: #cfd6e6;
+  --danger: #ff7b8a;
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-left: env(safe-area-inset-left, 0px);
+  --safe-right: env(safe-area-inset-right, 0px);
+  --font: ui-rounded, "SF Pro Rounded", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --bar-h: 64px;
+}
+
+* {
+  box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+html, body {
+  margin: 0;
+  height: 100%;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font);
+  overflow: hidden;
+  overscroll-behavior: none;
+  touch-action: none;
+}
+
+button { font-family: inherit; color: inherit; }
+.hidden { display: none !important; }
+
+#app {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+  background:
+    radial-gradient(120% 60% at 50% 0%, #1c2033 0%, rgba(28, 32, 51, 0) 70%),
+    linear-gradient(180deg, var(--bg) 0%, #0e111b 100%);
+}
+
+/* ---------- die beiden Bildschirme (Position setzt screen.js) ---------- */
+#ds { position: absolute; left: 0; top: 0; width: 100%; height: 100%; pointer-events: none; }
+.screen {
+  position: absolute;
+  overflow: hidden;
+  border-radius: 6px;
+  background: #000;
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.06), 0 8px 28px rgba(0, 0, 0, 0.55);
+}
+.screen canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+}
+#app.smooth .screen canvas { image-rendering: auto; }
+#hinge {
+  position: absolute;
+  height: 4px;
+  border-radius: 2px;
+  background: linear-gradient(90deg, rgba(207, 214, 230, 0), rgba(207, 214, 230, 0.22), rgba(207, 214, 230, 0));
+}
+
+#hint {
+  position: absolute;
+  left: 16px; right: 16px;
+  text-align: center;
+  font-size: 13px;
+  line-height: 1.35;
+  color: var(--muted);
+  pointer-events: none;
+  transition: opacity 0.6s;
+}
+#app.hint-done #hint { opacity: 0; }
+
+/* ---------- Gesten ---------- */
+#touch {
+  position: absolute;
+  left: 0; right: 0; top: 0;
+  bottom: calc(var(--bar-h) + var(--safe-bottom));
+  z-index: 4;
+  touch-action: none;
+}
+#stick {
+  position: absolute;
+  left: 0; top: 0;
+  width: 120px; height: 120px;
+  margin: -60px 0 0 -60px;
+  border-radius: 50%;
+  border: 2px solid rgba(207, 214, 230, 0.35);
+  background: radial-gradient(circle, rgba(180, 168, 255, 0.10) 0%, rgba(180, 168, 255, 0.04) 60%, rgba(0, 0, 0, 0) 70%);
+  z-index: 5;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.12s;
+}
+#stick.show { opacity: 1; }
+#stick.run { border-color: rgba(180, 168, 255, 0.75); }
+#knob {
+  position: absolute;
+  left: 50%; top: 50%;
+  width: 52px; height: 52px;
+  margin: -26px 0 0 -26px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, #ffffff 0%, #cfd6e6 45%, #8d96ad 100%);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.45);
+}
+#stick.run #knob { background: radial-gradient(circle at 35% 30%, #ffffff 0%, #c9c0ff 45%, #7d6fe0 100%); }
+
+#fx { position: absolute; inset: 0; pointer-events: none; z-index: 6; overflow: hidden; }
+.ripple {
+  position: absolute;
+  width: 40px; height: 40px;
+  margin: -20px 0 0 -20px;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.85);
+  background: rgba(180, 168, 255, 0.25);
+  animation: ripple 380ms ease-out forwards;
+}
+.ripple.miss { border-color: rgba(255, 255, 255, 0.35); background: rgba(255, 255, 255, 0.06); }
+@keyframes ripple {
+  from { transform: scale(0.35); opacity: 1; }
+  to { transform: scale(1.5); opacity: 0; }
+}
+.rowflash {
+  position: absolute;
+  border-radius: 4px;
+  background: rgba(180, 168, 255, 0.28);
+  box-shadow: 0 0 0 1px rgba(180, 168, 255, 0.6);
+  animation: rowflash 320ms ease-out forwards;
+}
+@keyframes rowflash { from { opacity: 1; } to { opacity: 0; } }
+
+/* ---------- Leiste ---------- */
+#bar {
+  position: absolute;
+  left: 0; right: 0; bottom: 0;
+  height: calc(var(--bar-h) + var(--safe-bottom));
+  padding: 6px calc(10px + var(--safe-right)) var(--safe-bottom) calc(10px + var(--safe-left));
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  z-index: 8;
+  background: linear-gradient(180deg, rgba(11, 13, 20, 0) 0%, rgba(11, 13, 20, 0.85) 30%, rgba(11, 13, 20, 0.95) 100%);
+}
+.tb {
+  flex: 1 1 0;
+  max-width: 92px;
+  height: 52px;
+  border: 0;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.05);
+  box-shadow: inset 0 0 0 1px var(--line);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  font-size: 11px;
+  color: var(--silver);
+  touch-action: none;
+}
+.tb svg { width: 22px; height: 22px; }
+.tb.main { background: linear-gradient(180deg, rgba(180, 168, 255, 0.28), rgba(180, 168, 255, 0.14)); box-shadow: inset 0 0 0 1px rgba(180, 168, 255, 0.45); color: #fff; }
+.tb.down { transform: scale(0.95); background: rgba(180, 168, 255, 0.32); }
+.tb.on { background: rgba(180, 168, 255, 0.3); color: #fff; box-shadow: inset 0 0 0 1px rgba(180, 168, 255, 0.7); }
+
+#perf {
+  position: absolute;
+  right: calc(8px + var(--safe-right));
+  top: calc(6px + var(--safe-top));
+  z-index: 9;
+  padding: 4px 8px;
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.6);
+  font: 11px/1.35 ui-monospace, Menlo, monospace;
+  color: #d8e0f0;
+  pointer-events: none;
+  white-space: pre;
+}
+
+/* ---------- Einstellungen ---------- */
+#sheetBack { position: absolute; inset: 0; z-index: 20; background: rgba(0, 0, 0, 0.45); }
+#sheet {
+  position: absolute;
+  left: 0; right: 0; bottom: 0;
+  max-height: 86%;
+  z-index: 21;
+  background: var(--panel);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  border-radius: 20px 20px 0 0;
+  box-shadow: 0 -10px 40px rgba(0, 0, 0, 0.5), inset 0 1px 0 var(--line-strong);
+  display: flex;
+  flex-direction: column;
+  padding-bottom: var(--safe-bottom);
+  touch-action: pan-y;
+}
+#sheet header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px 6px 20px;
+}
+#sheet h2 { margin: 0; font-size: 18px; }
+#sheet h3 { margin: 18px 0 8px; font-size: 13px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--accent); }
+.sheet-body { overflow-y: auto; padding: 0 20px 18px; -webkit-overflow-scrolling: touch; touch-action: pan-y; }
+.icon { width: 40px; height: 40px; border: 0; border-radius: 12px; background: rgba(255, 255, 255, 0.06); display: grid; place-items: center; }
+.icon svg { width: 20px; height: 20px; }
+.row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 44px;
+  font-size: 15px;
+  border-bottom: 1px solid var(--line);
+}
+.row.btns { border: 0; justify-content: stretch; padding: 4px 0; }
+.row.btns .btn { flex: 1 1 0; }
+.row.small .btn { min-height: 38px; font-size: 13px; }
+.row select, .row input[type="range"] { max-width: 58%; }
+select {
+  font: inherit;
+  font-size: 14px;
+  color: var(--text);
+  background: rgba(255, 255, 255, 0.07);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 8px 10px;
+}
+input[type="checkbox"] { width: 22px; height: 22px; accent-color: var(--accent); }
+input[type="range"] { accent-color: var(--accent); }
+.note { margin: 4px 0 8px; font-size: 13px; color: var(--muted); line-height: 1.4; }
+.note.small { font-size: 11px; margin-top: 16px; }
+.btn {
+  min-height: 44px;
+  padding: 8px 12px;
+  border: 0;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.08);
+  box-shadow: inset 0 0 0 1px var(--line);
+  font-size: 14px;
+  color: var(--text);
+}
+.btn.primary { background: var(--accent); color: var(--accent-ink); font-weight: 600; box-shadow: none; }
+.btn.danger { color: var(--danger); }
+.btn:active { transform: scale(0.98); }
+
+/* ---------- Start ---------- */
+#boot {
+  position: absolute;
+  inset: 0;
+  z-index: 30;
+  display: grid;
+  place-items: center;
+  padding: calc(20px + var(--safe-top)) 20px calc(20px + var(--safe-bottom));
+  background:
+    radial-gradient(90% 50% at 50% 20%, #232842 0%, rgba(35, 40, 66, 0) 70%),
+    var(--bg);
+}
+.boot-card { width: min(380px, 100%); text-align: center; }
+.boot-card h1 { margin: 18px 0 8px; font-size: 26px; letter-spacing: 0.02em; }
+#bootMsg { margin: 0 0 18px; color: var(--muted); line-height: 1.45; font-size: 15px; }
+#bootMsg.err { color: var(--danger); }
+#bootBtns { display: flex; flex-direction: column; gap: 10px; }
+#bootProgress { height: 6px; border-radius: 3px; background: rgba(255, 255, 255, 0.08); overflow: hidden; margin: -6px 0 18px; }
+#bootProgress div { height: 100%; width: 0%; background: var(--accent); transition: width 0.2s; }
+.logo { width: 92px; margin: 0 auto; display: grid; gap: 6px; }
+.logo div {
+  height: 62px;
+  border-radius: 10px;
+  background: linear-gradient(160deg, #e9edf7 0%, #9aa3bb 55%, #5d6580 100%);
+  box-shadow: inset 0 0 0 3px rgba(11, 13, 20, 0.55), 0 8px 24px rgba(0, 0, 0, 0.45);
+}
+.logo .l-bot { background: linear-gradient(160deg, #cfc7ff 0%, #8c7ff0 60%, #4b3fa6 100%); }
+
+#toast {
+  position: absolute;
+  left: 50%;
+  top: calc(14px + var(--safe-top));
+  transform: translate(-50%, -20px);
+  max-width: calc(100% - 32px);
+  padding: 10px 16px;
+  border-radius: 14px;
+  background: rgba(24, 28, 42, 0.96);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5), inset 0 0 0 1px var(--line);
+  font-size: 14px;
+  line-height: 1.35;
+  z-index: 40;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s, transform 0.2s;
+}
+#toast.show { opacity: 1; transform: translate(-50%, 0); }

@@ -1,0 +1,8 @@
+# Niemals Spiel- oder Speicherdateien hochladen
+*.nds
+*.sav
+*.dsv
+*.dst
+*.zip
+*.7z
+_test/
