@@ -146,7 +146,9 @@ export class Gestures {
     } else if (h.screen === -1) {
       // freie Fläche: wie A, aber nicht bei offenem Menü (sonst würde der markierte Eintrag gewählt),
       // nicht im Kampfmenü (nur wenn ein Text wartet) und nicht in der Namenseingabe
-      const blocked = st.bridge && (st.menuActive || st.noTapA || (st.battle && !st.textWaiting));
+      // Im Steuerfeld bestätigt Tippen auch einen markierten Menüeintrag (wie die A-Taste).
+      const inPad = this.screens.inPad(cx, cy);
+      const blocked = st.bridge && ((st.menuActive && !inPad) || st.noTapA || (st.battle && !st.textWaiting));
       if (!blocked) {
         this.press(K.A, 5);
         this.fx(cx, cy, null);
@@ -176,11 +178,13 @@ export class Gestures {
 
   // ---------- Stick ----------
   _showStick(x, y) {
+    this.screens.pad?.classList.toggle('active', this.screens.inPad(x, y));
     this.stick.style.transform = `translate(${x}px,${y}px)`;
     this.knob.style.transform = 'translate(0px,0px)';
     this.stick.classList.add('show');
   }
   _hideStick() {
+    this.screens.pad?.classList.remove('active');
     this.stick.classList.remove('show', 'run');
   }
   _stick(g) {

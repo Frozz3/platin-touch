@@ -11,7 +11,8 @@ Die ROM gehört nicht in ein öffentliches Repository (`.gitignore` schließt `*
 
 | Geste | Wirkung |
 | --- | --- |
-| Ziehen (oberer Bildschirm oder freie Fläche unten) | Laufen. Ein Stick erscheint dort, wo der Finger aufsetzt. Weit ziehen = rennen (ab den Laufschuhen) |
+| Ziehen im **Steuerfeld** (unter dem Touchscreen) oder auf dem oberen Bildschirm | Laufen. Ein Stick erscheint dort, wo der Finger aufsetzt. Weit ziehen = rennen (ab den Laufschuhen) |
+| Im Steuerfeld tippen | sprechen / weiter / markierten Menüeintrag bestätigen (wie A) |
 | Oben auf einen Menüeintrag tippen | Eintrag direkt auswählen (Startmenü, Ja/Nein, Listen, Hauptmenü, Pokéball bei der Starterwahl) |
 | Oben auf eine Person tippen | hinlaufen, hinschauen und ansprechen |
 | Oben sonst tippen | weiter / bestätigen (wie A). Im Kampf nur, wenn ein Text wartet |
@@ -21,7 +22,7 @@ Die ROM gehört nicht in ein öffentliches Repository (`.gitignore` schließt `*
 | **Menü** | X (Startmenü) |
 | **Item** | Y (registriertes Item, z. B. Fahrrad) |
 | **Tempo** | schneller Vorlauf an/aus (2- bis 4-fach, unter „Mehr“ einstellbar) |
-| **Mehr** | Einstellungen, Schnellspeichern/-laden, .sav-Export/-Import, Start/Select/L/R |
+| **Mehr** | Einstellungen (u. a. Steuerfeld aus/normal/groß; „groß“ verkleinert die Bildschirme etwas), Schnellspeichern/-laden, .sav-Export/-Import, Start/Select/L/R |
 
 Am PC geht es auch mit der Tastatur: Pfeiltasten, X = A, Y/Z = B, S = X, A = Y, Q/W = L/R, Enter = Start.
 

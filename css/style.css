@@ -78,17 +78,34 @@ button { font-family: inherit; color: inherit; }
   background: linear-gradient(90deg, rgba(207, 214, 230, 0), rgba(207, 214, 230, 0.22), rgba(207, 214, 230, 0));
 }
 
-#hint {
+#pad {
   position: absolute;
-  left: 16px; right: 16px;
-  text-align: center;
-  font-size: 13px;
-  line-height: 1.35;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 0 18px;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.035);
+  box-shadow: inset 0 0 0 1px var(--line);
   color: var(--muted);
   pointer-events: none;
-  transition: opacity 0.6s;
+  transition: background 0.15s, box-shadow 0.15s;
 }
-#app.hint-done #hint { opacity: 0; }
+#pad.active { background: rgba(180, 168, 255, 0.08); box-shadow: inset 0 0 0 1px rgba(180, 168, 255, 0.4); }
+#pad .pad-ring {
+  flex: 0 0 auto;
+  width: 64px; height: 64px;
+  border-radius: 50%;
+  border: 2px dashed rgba(207, 214, 230, 0.28);
+  display: grid;
+  place-items: center;
+}
+#pad .pad-dot { width: 24px; height: 24px; border-radius: 50%; background: rgba(207, 214, 230, 0.22); }
+#pad .pad-text { display: flex; flex-direction: column; gap: 2px; font-size: 13px; line-height: 1.3; }
+#pad .pad-text b { color: var(--silver); font-size: 14px; font-weight: 600; }
+#pad.small .pad-ring { width: 44px; height: 44px; }
+#pad.small .pad-text span:last-child { display: none; }
+#app.hint-done #pad .pad-text span { opacity: 0.75; }
 
 /* ---------- Gesten ---------- */
 #touch {

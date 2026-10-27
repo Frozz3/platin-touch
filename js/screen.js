@@ -3,14 +3,16 @@
 const W = 256, H = 192;
 
 export class Screens {
-  constructor({ app, top, bot, topWrap, botWrap, hinge, hint }) {
+  constructor({ app, top, bot, topWrap, botWrap, hinge, pad }) {
     this.app = app;
     this.top = top;
     this.bot = bot;
     this.topWrap = topWrap;
     this.botWrap = botWrap;
     this.hinge = hinge;
-    this.hint = hint;
+    this.pad = pad;
+    this.padSize = 1; // 0 = aus, 1 = normal, 2 = groß
+    this.padRect = null;
     this.ctxTop = top.getContext('2d', { alpha: false });
     this.ctxBot = bot.getContext('2d', { alpha: false });
     this.frame = null;
@@ -53,7 +55,12 @@ export class Screens {
     const topY = ins.top + 6;
     const maxH = vh - barH - topY - 8;
     const maxW = vw - ins.left - ins.right;
-    let s = Math.min(maxW / W, (maxH - gap) / (2 * H));
+    // Platz für das Steuerfeld unten freihalten; dafür werden die Bildschirme notfalls etwas kleiner
+    // (höchstens auf 78 % der vollen Breite)
+    const padMin = [0, 150, 220][this.padSize] || 0;
+    const fullS = Math.min(maxW / W, (maxH - gap) / (2 * H));
+    let s = Math.min(fullS, (maxH - gap - padMin) / (2 * H));
+    s = Math.max(s, Math.min(fullS, (maxW / W) * 0.78));
     // auf ganze Gerätepixel runden (sauberere Kanten)
     const dpr = window.devicePixelRatio || 1;
     s = Math.floor(s * W * dpr) / (W * dpr);
@@ -69,9 +76,27 @@ export class Screens {
     this.hinge.style.top = topY + h + gap / 2 - 2 + 'px';
     const freeY = this.botRect.y + h;
     this.freeTop = freeY;
-    const freeH = vh - barH - freeY;
-    this.hint.style.top = freeY + Math.max(8, freeH / 2 - 18) + 'px';
-    this.hint.style.display = freeH > 40 ? '' : 'none';
+    const padTop = freeY + 8, padBottom = vh - barH - 4;
+    const padH = padBottom - padTop;
+    if (this.padSize > 0 && padH >= 56) {
+      this.padRect = { x: ins.left + 10, y: padTop, w: vw - ins.left - ins.right - 20, h: padH };
+      place(this.pad, this.padRect);
+      this.pad.style.display = '';
+      this.pad.classList.toggle('small', padH < 110);
+    } else {
+      this.padRect = null;
+      this.pad.style.display = 'none';
+    }
+  }
+
+  setPadSize(n) {
+    this.padSize = n;
+    this.layout();
+  }
+
+  inPad(cx, cy) {
+    const r = this.padRect;
+    return !!r && cx >= r.x && cx < r.x + r.w && cy >= r.y && cy < r.y + r.h;
   }
 
   /** Bildschirmpunkt -> {screen: 0|1|-1, x, y} in DS-Pixeln (x 0..255, y 0..191) */

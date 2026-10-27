@@ -290,6 +290,7 @@ function openSheet() {
   $('#sheet').classList.remove('hidden');
   $('#sheetBack').classList.remove('hidden');
   $('#optRun').value = settings.run;
+  $('#optPad').value = String(settings.pad);
   $('#optFF').value = String(settings.ff);
   $('#optFps').value = settings.fps;
   $('#optSmooth').checked = !!settings.smooth;
@@ -335,6 +336,7 @@ function wireUi() {
   $('#sheetBack').addEventListener('click', closeSheet);
 
   $('#optRun').addEventListener('change', (e) => { settings.run = e.target.value; save(); });
+  $('#optPad').addEventListener('change', (e) => { settings.pad = +e.target.value; save(); screens.setPadSize(settings.pad); });
   $('#optFF').addEventListener('change', (e) => {
     settings.ff = +e.target.value; save();
     if (ffOn) emu.post({ type: 'speed', speed: settings.ff });
@@ -401,7 +403,8 @@ function wireUi() {
 
 // ---------- Start ----------
 async function main() {
-  screens = new Screens({ app: $('#app'), top: $('#top'), bot: $('#bot'), topWrap: $('#topWrap'), botWrap: $('#botWrap'), hinge: $('#hinge'), hint: $('#hint') });
+  screens = new Screens({ app: $('#app'), top: $('#top'), bot: $('#bot'), topWrap: $('#topWrap'), botWrap: $('#botWrap'), hinge: $('#hinge'), pad: $('#pad') });
+  screens.setPadSize(+settings.pad);
   audio = new Audio();
   await audio.init().catch(() => {});
 

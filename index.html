@@ -42,7 +42,11 @@
     <div class="screen" id="botWrap"><canvas id="bot" width="256" height="192"></canvas></div>
   </div>
 
-  <div id="hint">Ziehen zum Laufen · Oben tippen zum Ansprechen · Unten direkt berühren</div>
+  <!-- Steuerfeld zwischen Touchscreen und Leiste: Ziehen = laufen, Tippen = sprechen/weiter -->
+  <div id="pad" aria-hidden="true">
+    <div class="pad-ring"><div class="pad-dot"></div></div>
+    <div class="pad-text"><b>Steuerfeld</b><span>Ziehen = laufen</span><span>Tippen = sprechen / weiter</span></div>
+  </div>
 
   <!-- Gesten: liegt über allem außer der Leiste -->
   <div id="touch"></div>
@@ -94,6 +98,13 @@
           <option value="drag">weit ziehen = rennen</option>
           <option value="always">immer rennen</option>
           <option value="never">nie rennen</option>
+        </select>
+      </label>
+      <label class="row">Steuerfeld unten
+        <select id="optPad">
+          <option value="0">aus</option>
+          <option value="1">normal</option>
+          <option value="2">groß</option>
         </select>
       </label>
       <label class="row">Tempo-Knopf
