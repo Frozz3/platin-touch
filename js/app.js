@@ -208,11 +208,6 @@ function onWorker(e) {
       $('#romInfo').textContent = romInfo + (m.found ? ' · Touch-Brücke aktiv' : ' · ohne Touch-Brücke (unveränderte ROM)');
       if (!m.found) toast('Diese ROM hat keine Touch-Brücke: Tippen oben = A, Menüs per Wischen.', 4500);
       else if (m.version < 4 && settings.menus) toast('Ältere ROM: Auswahlmenüs bleiben oben. Für die Auswahl unten die neue ROM wählen (Mehr → Andere ROM wählen).', 6000);
-      else if (settings.walkBottom !== false) {
-        let seen = null;
-        try { seen = localStorage.getItem('pt.hintWalkBottom'); localStorage.setItem('pt.hintWalkBottom', '1'); } catch (e) {}
-        if (!seen) toast('Tipp: Draußen kannst du auch auf dem unteren Bildschirm ziehen, um zu laufen. Kurz tippen bedient den Pokétch.', 6000);
-      }
       break;
     case 'sav':
       if (DEBUG) console.log('[sav]', m.data.byteLength, nonFF(m.data));

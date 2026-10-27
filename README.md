@@ -17,7 +17,7 @@ Die ROM gehört nicht in ein öffentliches Repository (`.gitignore` schließt `*
 | In der Lauffläche tippen | sprechen / weiter / markierten Menüeintrag bestätigen (wie A) |
 | Oben auf eine Person tippen | hinlaufen, hinschauen und ansprechen |
 | **Auswahl auf dem Touchscreen** | Auswahlmenüs (Startmenü, Ja/Nein, Listen, Fragen im Spiel …) verschwinden oben und erscheinen unten als Knöpfe im Stil des Spiels. Antippen wählt aus, Wischen bewegt den Cursor, ▲/▼ blättert lange Listen |
-| Oben auf einen Menüeintrag tippen | dort, wo ein Menü oben bleibt (Hauptmenü, Pokéball bei der Starterwahl, Liste im Beutel) |
+| Oben auf einen Menüeintrag tippen | dort, wo ein Menü oben bleibt (Hauptmenü, Junge/Mädchen im Intro, Pokéball bei der Starterwahl, Liste im Beutel) |
 | Touchscreen | wird direkt berührt: Kampfmenü, Beutel, Team, Tastatur … Draußen: Ziehen = laufen, kurz tippen = Pokétch |
 | **Zurück** | B (Menü schließen, abbrechen) |
 | **Menü** | X (Startmenü) |
