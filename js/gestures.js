@@ -1,5 +1,6 @@
 // Platin Touch – Gesten.
-//  - Unterer Bildschirm: wird direkt als DS-Touchscreen weitergegeben (Kampf, Pokétch, Tastatur …)
+//  - Unterer Bildschirm: wird direkt als DS-Touchscreen weitergegeben (Kampf, Pokétch, Tastatur …),
+//    außer ein Auswahlmenü wird dort angezeigt (menu-overlay.js): dann wählen die Knöpfe aus
 //  - Oberer Bildschirm und freie Fläche:
 //      Ziehen  = Laufen (schwebender Stick, weit ziehen = rennen)
 //      Ziehen in einem Menü = Liste/Cursor bewegen (wie Wischen am Handy)
@@ -58,7 +59,12 @@ export class Gestures {
     this.layer.setPointerCapture?.(e.pointerId);
     const h = this.screens.hit(e.clientX, e.clientY);
     const g = { id: e.pointerId, x0: e.clientX, y0: e.clientY, x: e.clientX, y: e.clientY, t0: performance.now(), mode: 'pending', samples: [], ax: 0, ay: 0, dir: null, screen: h.screen };
-    if (h.screen === 1 && this.dsId === null) {
+    if (h.screen === 1 && this.overlay?.active) {
+      // Auswahlmenü unten: Knopf drücken, beim Loslassen auswählen
+      g.mode = 'ov';
+      g.btn = this.overlay.hit(h.x, h.y);
+      this.overlay.setPressed(g.btn);
+    } else if (h.screen === 1 && this.dsId === null) {
       g.mode = 'ds';
       this.dsId = e.pointerId;
       this.emu.post({ type: 'touch', on: true, x: h.x, y: h.y });
@@ -76,6 +82,23 @@ export class Gestures {
     g.samples.push({ t: performance.now(), x: g.x, y: g.y });
     if (g.samples.length > 8) g.samples.shift();
 
+    if (g.mode === 'ov' && Math.hypot(g.x - g.x0, g.y - g.y0) >= SLOP * 1.5) {
+      // Wischen über die Knöpfe: Cursor bzw. Liste bewegen (wie oben)
+      this.overlay.setPressed(null);
+      g.mode = 'scroll';
+      g.ay = g.y - g.y0;
+      g.ax = 0;
+      this._scroll(g, 0, 0);
+      return;
+    }
+    if (g.mode === 'ov') {
+      const h = this.screens.hit(g.x, g.y);
+      const b = h.screen === 1 && this.overlay.active ? this.overlay.hit(h.x, h.y) : null;
+      // Finger vom Knopf gezogen: nicht auswählen
+      this.overlay.setPressed(b && g.btn && b.id === g.btn.id ? b : null);
+      return;
+    }
+
     if (g.mode === 'ds') {
       const r = this.screens.botRect;
       const x = clamp(((g.x - r.x) / r.w) * 256, 0, 255);
@@ -90,6 +113,9 @@ export class Gestures {
       const st = this.status();
       if (st.bridge && st.menuActive && st.menuScreen === 0) {
         g.mode = 'scroll';
+        // die ersten Pixel (bis zur Ziehschwelle) mitzählen; _scroll addiert gleich noch dx/dy
+        g.ax = g.x - g.x0 - dx;
+        g.ay = g.y - g.y0 - dy;
       } else if (this.stickId === null) {
         g.mode = 'stick';
         this.stickId = g.id;
@@ -109,6 +135,15 @@ export class Gestures {
     const g = this.ptr.get(e.pointerId);
     if (!g) return;
     this.ptr.delete(e.pointerId);
+    if (g.mode === 'ov') {
+      const b = this.overlay.pressed;
+      this.overlay.setPressed(null);
+      if (!cancel && b && g.btn && b.id === g.btn.id && this.overlay.active) {
+        const t = this.overlay.target(b);
+        this.emu.post({ type: 'tap', x: t.x, y: t.y, screen: 0 });
+      }
+      return;
+    }
     if (g.mode === 'ds') {
       this.dsId = null;
       this.emu.post({ type: 'touch', on: false, x: 0, y: 0 });
@@ -132,7 +167,10 @@ export class Gestures {
   _tap(cx, cy) {
     const h = this.screens.hit(cx, cy);
     const st = this.status();
-    if (h.screen === 0) {
+    if (h.screen === 0 && this.overlay?.active) {
+      // Das Menü ist unten zu sehen; oben ist an seiner Stelle nichts mehr
+      this.fx(cx, cy, null, true);
+    } else if (h.screen === 0) {
       // Person angetippt: hinlaufen und ansprechen
       const npc = this.autopilot && st.bridge && st.field && !st.menuActive && !st.textActive ? this.autopilot.npcAt(st, h.x, h.y) : null;
       if (npc) {
@@ -223,7 +261,7 @@ export class Gestures {
   _step() {
     const st = this.status();
     const rowH = (st.menuRowH || 16) * this.screens.scale;
-    return { y: Math.max(18, rowH * 0.9), x: Math.max(30, rowH * 2) };
+    return { y: Math.min(30, Math.max(18, rowH * 0.7)), x: Math.max(30, rowH * 2) };
   }
   _scroll(g, dx, dy) {
     const step = this._step();

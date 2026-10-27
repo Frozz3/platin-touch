@@ -1,7 +1,8 @@
 # Platin Touch
 
 Pokémon Platin (aus dem eigenen Decompile gebaut) im Browser spielen, auf dem iPhone im Hochformat
-und mit Touch-Steuerung. Beide DS-Bildschirme stehen übereinander, darunter liegt eine Leiste mit Knöpfen.
+und mit Touch-Steuerung. Beide DS-Bildschirme stehen übereinander und nutzen die ganze Breite (ohne Verzerrung),
+darunter liegen das Steuerfeld und eine Leiste mit Knöpfen.
 
 **Dieser Ordner enthält kein Spiel.** Die App braucht die ROM-Datei `pokeplatinum-touch.nds`. Sie wird aus dem
 Quellcode gebaut, auf dem Gerät ausgewählt und nur dort im Browser gespeichert. Hochgeladen wird sie nie.
@@ -13,7 +14,8 @@ Die ROM gehört nicht in ein öffentliches Repository (`.gitignore` schließt `*
 | --- | --- |
 | Ziehen im **Steuerfeld** (unter dem Touchscreen) oder auf dem oberen Bildschirm | Laufen. Ein Stick erscheint dort, wo der Finger aufsetzt. Weit ziehen = rennen (ab den Laufschuhen) |
 | Im Steuerfeld tippen | sprechen / weiter / markierten Menüeintrag bestätigen (wie A) |
-| Oben auf einen Menüeintrag tippen | Eintrag direkt auswählen (Startmenü, Ja/Nein, Listen, Hauptmenü, Pokéball bei der Starterwahl) |
+| **Auswahl unten antippen** | Auswahlmenüs (Startmenü, Ja/Nein, Listen, Fragen im Spiel …) verschwinden oben und erscheinen unten als Knöpfe im Stil des Spiels. Antippen wählt aus, Wischen bewegt den Cursor, ▲/▼ blättert lange Listen |
+| Oben auf einen Menüeintrag tippen | Eintrag direkt auswählen, wo ein Menü oben bleibt (Hauptmenü, Pokéball bei der Starterwahl, Listen im Beutel; oder wenn „Auswahl auf dem unteren Bildschirm“ aus ist) |
 | Oben auf eine Person tippen | hinlaufen, hinschauen und ansprechen |
 | Oben sonst tippen | weiter / bestätigen (wie A). Im Kampf nur, wenn ein Text wartet |
 | In einem Menü ziehen | Cursor bzw. Liste bewegen (wie Wischen am Handy), knapp über/unter einer Liste tippen = blättern |
@@ -22,7 +24,7 @@ Die ROM gehört nicht in ein öffentliches Repository (`.gitignore` schließt `*
 | **Menü** | X (Startmenü) |
 | **Item** | Y (registriertes Item, z. B. Fahrrad) |
 | **Tempo** | schneller Vorlauf an/aus (2- bis 4-fach, unter „Mehr“ einstellbar) |
-| **Mehr** | Einstellungen (u. a. Steuerfeld aus/normal/groß; „groß“ verkleinert die Bildschirme etwas), Schnellspeichern/-laden, .sav-Export/-Import, Start/Select/L/R |
+| **Mehr** | Einstellungen (u. a. „Auswahl auf dem unteren Bildschirm“, Steuerfeld aus/an/groß; „groß“ verkleinert die Bildschirme), Schnellspeichern/-laden, .sav-Export/-Import, Start/Select/L/R |
 
 Am PC geht es auch mit der Tastatur: Pfeiltasten, X = A, Y/Z = B, S = X, A = Y, Q/W = L/R, Enter = Start.
 

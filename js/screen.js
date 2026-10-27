@@ -51,32 +51,39 @@ export class Screens {
     const vw = window.innerWidth, vh = window.innerHeight;
     const ins = this.insets();
     const barH = 64 + ins.bottom;
-    const gap = 10;
-    const topY = ins.top + 6;
-    const maxH = vh - barH - topY - 8;
+    const big = this.padSize === 2;
+    const gap = big ? 10 : 6;
+    const topY = ins.top + 2;
+    const maxH = vh - barH - topY - 4;
     const maxW = vw - ins.left - ins.right;
-    // Platz für das Steuerfeld unten freihalten; dafür werden die Bildschirme notfalls etwas kleiner
-    // (höchstens auf 78 % der vollen Breite)
-    const padMin = [0, 150, 220][this.padSize] || 0;
+    // Normal füllen die Bildschirme die ganze Breite (Seitenverhältnis bleibt, nichts wird verzerrt);
+    // das Steuerfeld nimmt den Platz darunter. Nur bei "Steuerfeld groß" werden sie dafür etwas kleiner.
     const fullS = Math.min(maxW / W, (maxH - gap) / (2 * H));
-    let s = Math.min(fullS, (maxH - gap - padMin) / (2 * H));
-    s = Math.max(s, Math.min(fullS, (maxW / W) * 0.78));
-    // auf ganze Gerätepixel runden (sauberere Kanten)
-    const dpr = window.devicePixelRatio || 1;
-    s = Math.floor(s * W * dpr) / (W * dpr);
-    const w = W * s, h = H * s;
+    let s = fullS;
+    if (big) s = Math.max(Math.min(fullS, (maxH - gap - 220) / (2 * H)), fullS * 0.78);
+    let w;
+    if (s === maxW / W) {
+      w = maxW; // exakt bündig
+    } else {
+      // auf ganze Gerätepixel runden (sauberere Kanten)
+      const dpr = window.devicePixelRatio || 1;
+      s = Math.floor(s * W * dpr) / (W * dpr);
+      w = W * s;
+    }
+    const h = H * s;
     const x = ins.left + (maxW - w) / 2;
     this.scale = s;
     this.topRect = { x, y: topY, w, h };
     this.botRect = { x, y: topY + h + gap, w, h };
     place(this.topWrap, this.topRect);
     place(this.botWrap, this.botRect);
+    this.app.classList.toggle('full', w >= vw - 1);
     this.hinge.style.left = x + w * 0.3 + 'px';
     this.hinge.style.width = w * 0.4 + 'px';
     this.hinge.style.top = topY + h + gap / 2 - 2 + 'px';
     const freeY = this.botRect.y + h;
     this.freeTop = freeY;
-    const padTop = freeY + 8, padBottom = vh - barH - 4;
+    const padTop = freeY + 6, padBottom = vh - barH - 4;
     const padH = padBottom - padTop;
     if (this.padSize > 0 && padH >= 56) {
       this.padRect = { x: ins.left + 10, y: padTop, w: vw - ins.left - ins.right - 20, h: padH };

@@ -71,6 +71,10 @@ button { font-family: inherit; color: inherit; }
   image-rendering: crisp-edges;
 }
 #app.smooth .screen canvas { image-rendering: auto; }
+/* volle Breite: ohne Ecken und Schatten an den Seiten */
+#app.full .screen { border-radius: 0; box-shadow: none; }
+/* Auswahlmenü auf dem unteren Bildschirm (zeichnet menu-overlay.js) */
+.screen canvas.ov { position: absolute; left: 0; top: 0; }
 #hinge {
   position: absolute;
   height: 4px;

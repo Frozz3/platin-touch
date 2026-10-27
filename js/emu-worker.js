@@ -1,9 +1,9 @@
 // Platin Touch – Emulator-Thread (Web Worker).
 // Hier läuft der DS-Kern (DeSmuME als WebAssembly). Die Seite selbst bleibt dadurch frei für
 // Touch-Eingaben und das Zeichnen. Nachrichten:
-//   Seite -> Worker: init, start, pause, keys, press, queue, touch, tap, speed, fps, volume,
+//   Seite -> Worker: init, start, pause, keys, press, queue, touch, tap, speed, fps, volume, menusBottom,
 //                    stateSave, stateLoad, exportSave, importSave, reset, flush
-//   Worker -> Seite: ready, started, frame, audio, status, sav, state, saveFile, error, log
+//   Worker -> Seite: ready, started, frame, audio, status, menuPix, sav, state, saveFile, error, log
 'use strict';
 
 self.Module = undefined;
@@ -35,6 +35,9 @@ let touchOn = false, touchX = 0, touchY = 0;
 let bridgeOff = -1; // Offset im Hauptspeicher
 let bridgeTried = 0;
 let ramBase = 0;
+let menusBottom = false; // Einstellung: Auswahlmenüs unten anzeigen
+let ownActive = false; // die App zeigt gerade ein Menü unten an
+let pixHash = -1;
 
 // Batteriespeicher
 let savDirtyAt = 0;
@@ -121,7 +124,43 @@ function readStatus() {
     textWaiting: (frame - b32(80)) >>> 0 <= 3,
     battle: (frame - b32(84)) >>> 0 <= 3,
     ...fieldStatus(frame),
+    ...ownStatus(frame),
   };
+}
+
+// Menü, das die App unten anzeigt (Brücke ab Version 4)
+function ownStatus(frame) {
+  if (b16(8) < 4 || b16(10) < 316) return { own: false };
+  const own = (frame - b32(268)) >>> 0 <= 2 && (frame - b32(28)) >>> 0 <= 2;
+  if (!own) return { own: false };
+  return { own: true, tilesW: b8(276), tilesH: b8(277), menuStyle: b8(279), labelX: b8(280), bgIndex: b8(281), itemX0: b16s(50), colW: b16(52) };
+}
+
+// Pixel und Farben des Menüfensters an die Seite schicken (nur bei Änderung)
+function postMenuPixels(st) {
+  const addr = b32(272);
+  const len = st.tilesW * st.tilesH * 32;
+  const off = addr - 0x02000000;
+  if (off < 0 || len <= 0 || off + len > 4 * 1024 * 1024) return;
+  const h = M.HEAPU8;
+  const a = ramBase + off;
+  let hash = 2166136261;
+  for (let i = 0; i < len; i += 2) hash = Math.imul(hash ^ h[a + i] ^ (h[a + i + 1] << 8), 16777619);
+  for (let i = 0; i < 32; i++) hash = Math.imul(hash ^ b8(284 + i), 16777619);
+  hash = (hash ^ (st.tilesW << 8) ^ st.tilesH ^ (st.labelX << 16) ^ (st.menuStyle << 24)) >>> 0;
+  if (hash === pixHash) return;
+  pixHash = hash;
+  const pix = h.slice(a, a + len);
+  const pal = new Uint16Array(16);
+  for (let i = 0; i < 16; i++) pal[i] = b16(284 + i * 2);
+  post({ type: 'menuPix', pix, pal, hash }, [pix.buffer, pal.buffer]);
+}
+
+function writeAppFlags() {
+  if (!bridgeValid()) return;
+  const a = ramBase + bridgeOff + 20;
+  const on = menusBottom || ownActive;
+  M.HEAPU8[a] = (M.HEAPU8[a] & ~2) | (on ? 2 : 0);
 }
 
 function fieldStatus(frame) {
@@ -175,6 +214,7 @@ function currentKeys() {
 
 function runOne(draw) {
   const keys = currentKeys();
+  writeAppFlags();
   const t = performance.now();
   M._pt_runFrame(draw ? 1 : 0, keys, touchOn ? 1 : 0, touchX, touchY);
   const dt = performance.now() - t;
@@ -259,6 +299,9 @@ function tick() {
   }
 
   const st = readStatus();
+  ownActive = !!st.own;
+  if (st.own) postMenuPixels(st);
+  else pixHash = -1;
   const key = JSON.stringify(st);
   if (key !== lastStatusKey) {
     lastStatusKey = key;
@@ -307,6 +350,7 @@ self.onmessage = async (e) => {
       case 'speed': speed = Math.max(1, m.speed | 0); nextAt = 0; break;
       case 'fps': fpsMode = m.mode; break;
       case 'mute': muted = !!m.on; break;
+      case 'menusBottom': menusBottom = !!m.on; break;
       case 'flush': if (romLoaded) postSav(); break;
       case 'stateSave': {
         const n = M._pt_stateSave();

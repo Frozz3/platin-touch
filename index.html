@@ -39,7 +39,7 @@
   <div id="ds">
     <div class="screen" id="topWrap"><canvas id="top" width="256" height="192"></canvas></div>
     <div id="hinge"></div>
-    <div class="screen" id="botWrap"><canvas id="bot" width="256" height="192"></canvas></div>
+    <div class="screen" id="botWrap"><canvas id="bot" width="256" height="192"></canvas><canvas id="menuOv" class="ov" width="256" height="192" style="display:none"></canvas></div>
   </div>
 
   <!-- Steuerfeld zwischen Touchscreen und Leiste: Ziehen = laufen, Tippen = sprechen/weiter -->
@@ -100,11 +100,12 @@
           <option value="never">nie rennen</option>
         </select>
       </label>
+      <label class="row">Auswahl auf dem unteren Bildschirm <input type="checkbox" id="optMenus"></label>
       <label class="row">Steuerfeld unten
         <select id="optPad">
           <option value="0">aus</option>
-          <option value="1">normal</option>
-          <option value="2">groß</option>
+          <option value="1">an</option>
+          <option value="2">groß (Bildschirme kleiner)</option>
         </select>
       </label>
       <label class="row">Tempo-Knopf

@@ -5,6 +5,7 @@ import { Screens } from './screen.js';
 import { Gestures, K } from './gestures.js';
 import { Audio } from './audio.js';
 import { Autopilot } from './autopilot.js';
+import { MenuOverlay } from './menu-overlay.js';
 
 const $ = (s) => document.querySelector(s);
 const $$ = (s) => Array.from(document.querySelectorAll(s));
@@ -17,7 +18,7 @@ const save = () => store.saveSettings(settings);
 let worker = null;
 let status = { bridge: false };
 let bridgeKnown = null;
-let screens, gestures, audio, autopilot;
+let screens, gestures, audio, autopilot, overlay;
 let ffOn = false;
 let running = false;
 let romInfo = '';
@@ -195,11 +196,17 @@ function onWorker(e) {
   switch (m.type) {
     case 'frame': screens.setFrame(m.buf); break;
     case 'audio': audio.push(m.pcm); break;
-    case 'status': status = m.st; if (autopilot) autopilot.update(status); break;
+    case 'status':
+      status = m.st;
+      if (autopilot) autopilot.update(status);
+      if (overlay) overlay.update(status);
+      break;
+    case 'menuPix': if (overlay) overlay.setPixels(m); break;
     case 'bridge':
       bridgeKnown = m.found;
       $('#romInfo').textContent = romInfo + (m.found ? ' · Touch-Brücke aktiv' : ' · ohne Touch-Brücke (unveränderte ROM)');
       if (!m.found) toast('Diese ROM hat keine Touch-Brücke: Tippen oben = A, Menüs per Wischen.', 4500);
+      else if (m.version < 4 && settings.menus) toast('Ältere ROM: Auswahlmenüs bleiben oben. Für die Auswahl unten die neue ROM wählen (Mehr → Andere ROM wählen).', 6000);
       break;
     case 'sav':
       if (DEBUG) console.log('[sav]', m.data.byteLength, nonFF(m.data));
@@ -284,6 +291,7 @@ function applySettings() {
   audio.setVolume(settings.volume / 100);
   emu.post({ type: 'fps', mode: settings.fps });
   emu.post({ type: 'mute', on: settings.volume === 0 });
+  emu.post({ type: 'menusBottom', on: !!settings.menus });
 }
 
 function openSheet() {
@@ -297,6 +305,7 @@ function openSheet() {
   $('#optVol').value = settings.volume;
   $('#optPerf').checked = !!settings.perf;
   $('#optResume').checked = !!settings.resume;
+  $('#optMenus').checked = !!settings.menus;
 }
 function closeSheet() {
   $('#sheet').classList.add('hidden');
@@ -346,6 +355,7 @@ function wireUi() {
   $('#optVol').addEventListener('input', (e) => { settings.volume = +e.target.value; save(); applySettings(); });
   $('#optPerf').addEventListener('change', (e) => { settings.perf = e.target.checked; save(); applySettings(); });
   $('#optResume').addEventListener('change', (e) => { settings.resume = e.target.checked; save(); });
+  $('#optMenus').addEventListener('change', (e) => { settings.menus = e.target.checked; save(); applySettings(); });
 
   for (const b of $$('[data-press]')) {
     b.addEventListener('click', () => gestures.press(K[b.dataset.press], 6));
@@ -405,6 +415,7 @@ function wireUi() {
 async function main() {
   screens = new Screens({ app: $('#app'), top: $('#top'), bot: $('#bot'), topWrap: $('#topWrap'), botWrap: $('#botWrap'), hinge: $('#hinge'), pad: $('#pad') });
   screens.setPadSize(+settings.pad);
+  overlay = new MenuOverlay($('#menuOv'));
   audio = new Audio();
   await audio.init().catch(() => {});
 
@@ -416,6 +427,7 @@ async function main() {
     emu,
     settings,
     status: () => status,
+    overlay,
     fx,
     unlock: () => audio.unlock(),
     onFirstDrag: () => $('#app').classList.add('hint-done'),
@@ -424,7 +436,7 @@ async function main() {
   gestures.autopilot = autopilot;
   setInterval(() => { if (autopilot.active) autopilot.update(status); }, 100);
   wireUi();
-  window.__pt = { emu, screens, gestures, audio, settings, autopilot, get status() { return status; } };
+  window.__pt = { emu, screens, gestures, audio, settings, autopilot, overlay, get status() { return status; } };
 
   setBoot('Lade Emulator …', { progress: 0.05 });
   try {
