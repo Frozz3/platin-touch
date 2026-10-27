@@ -1,26 +1,32 @@
-// Platin Touch – Anordnung und Zeichnen der beiden DS-Bildschirme (hochkant übereinander).
+// Platin Touch – Anordnung und Zeichnen der beiden DS-Bildschirme.
+//
+// Aufbau (Hochformat):
+//   oben       der obere DS-Bildschirm in voller Breite
+//   Mitte      Lauffläche (Ziehen = laufen, Tippen = sprechen/weiter)
+//   unten      der Touchscreen; er fährt von unten herein, wenn er gebraucht wird
+//              (Kampf, Auswahl, Beutel …), und verschwindet draußen wieder
+//   ganz unten die Leiste mit den Knöpfen
 
 const W = 256, H = 192;
 
 export class Screens {
-  constructor({ app, top, bot, topWrap, botWrap, hinge, pad }) {
+  constructor({ app, top, bot, topWrap, botWrap, pad }) {
     this.app = app;
     this.top = top;
     this.bot = bot;
     this.topWrap = topWrap;
     this.botWrap = botWrap;
-    this.hinge = hinge;
     this.pad = pad;
-    this.padSize = 1; // 0 = aus, 1 = normal, 2 = groß
-    this.padRect = null;
     this.ctxTop = top.getContext('2d', { alpha: false });
     this.ctxBot = bot.getContext('2d', { alpha: false });
     this.frame = null;
     this.drawn = 0;
     this.topRect = { x: 0, y: 0, w: W, h: H };
     this.botRect = { x: 0, y: H, w: W, h: H };
+    this.walkRect = null;
+    this.bottomShown = true;
+    this.onChange = null;
     this.scale = 1;
-    this.freeTop = 0; // freie Fläche unter dem Touchscreen
     this._probe = document.createElement('div');
     this._probe.style.cssText = 'position:absolute;visibility:hidden;pointer-events:none;padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left)';
     document.body.appendChild(this._probe);
@@ -50,65 +56,69 @@ export class Screens {
   layout() {
     const vw = window.innerWidth, vh = window.innerHeight;
     const ins = this.insets();
-    const barH = 64 + ins.bottom;
-    const big = this.padSize === 2;
-    const gap = big ? 10 : 6;
-    const topY = ins.top + 2;
-    const maxH = vh - barH - topY - 4;
+    const barH = 68 + ins.bottom;
+    const topY = ins.top;
     const maxW = vw - ins.left - ins.right;
-    // Normal füllen die Bildschirme die ganze Breite (Seitenverhältnis bleibt, nichts wird verzerrt);
-    // das Steuerfeld nimmt den Platz darunter. Nur bei "Steuerfeld groß" werden sie dafür etwas kleiner.
-    const fullS = Math.min(maxW / W, (maxH - gap) / (2 * H));
-    let s = fullS;
-    if (big) s = Math.max(Math.min(fullS, (maxH - gap - 220) / (2 * H)), fullS * 0.78);
-    let w;
-    if (s === maxW / W) {
-      w = maxW; // exakt bündig
-    } else {
-      // auf ganze Gerätepixel runden (sauberere Kanten)
+    const availH = vh - barH - topY;
+    // volle Breite; nur wenn beide Bildschirme sonst nicht übereinander passen, etwas kleiner
+    let s = maxW / W;
+    let w = maxW;
+    if (2 * H * s + 6 > availH) {
       const dpr = window.devicePixelRatio || 1;
-      s = Math.floor(s * W * dpr) / (W * dpr);
+      s = Math.floor(((availH - 6) / (2 * H)) * W * dpr) / (W * dpr);
       w = W * s;
     }
     const h = H * s;
     const x = ins.left + (maxW - w) / 2;
     this.scale = s;
+    this.vh = vh;
+    this.barH = barH;
     this.topRect = { x, y: topY, w, h };
-    this.botRect = { x, y: topY + h + gap, w, h };
+    this.botRect = { x, y: vh - barH - h - 2, w, h };
     place(this.topWrap, this.topRect);
     place(this.botWrap, this.botRect);
     this.app.classList.toggle('full', w >= vw - 1);
-    this.hinge.style.left = x + w * 0.3 + 'px';
-    this.hinge.style.width = w * 0.4 + 'px';
-    this.hinge.style.top = topY + h + gap / 2 - 2 + 'px';
-    const freeY = this.botRect.y + h;
-    this.freeTop = freeY;
-    const padTop = freeY + 6, padBottom = vh - barH - 4;
-    const padH = padBottom - padTop;
-    if (this.padSize > 0 && padH >= 56) {
-      this.padRect = { x: ins.left + 10, y: padTop, w: vw - ins.left - ins.right - 20, h: padH };
-      place(this.pad, this.padRect);
+    this.app.style.setProperty('--bot-hide', h + barH + 24 + 'px');
+    this._placeWalk();
+  }
+
+  _placeWalk() {
+    const vw = window.innerWidth;
+    const ins = this.insets();
+    const y0 = this.topRect.y + this.topRect.h + 2;
+    const y1 = this.bottomShown ? this.botRect.y - 2 : this.vh - this.barH;
+    const h = y1 - y0;
+    this.walkRect = h > 24 ? { x: ins.left, y: y0, w: vw - ins.left - ins.right, h } : null;
+    if (this.walkRect) {
+      place(this.pad, this.walkRect);
       this.pad.style.display = '';
-      this.pad.classList.toggle('small', padH < 110);
+      this.pad.classList.toggle('small', h < 120);
+      this.pad.classList.toggle('tiny', h < 70);
     } else {
-      this.padRect = null;
       this.pad.style.display = 'none';
     }
   }
 
-  setPadSize(n) {
-    this.padSize = n;
-    this.layout();
+  /** Touchscreen ein-/ausblenden */
+  setBottom(show) {
+    show = !!show;
+    if (show === this.bottomShown) return;
+    this.bottomShown = show;
+    if (show) this.flushBottom();
+    this.app.classList.toggle('bot-hidden', !show);
+    this._placeWalk();
+    this.onChange?.(show);
   }
 
   inPad(cx, cy) {
-    const r = this.padRect;
+    const r = this.walkRect;
     return !!r && cx >= r.x && cx < r.x + r.w && cy >= r.y && cy < r.y + r.h;
   }
 
   /** Bildschirmpunkt -> {screen: 0|1|-1, x, y} in DS-Pixeln (x 0..255, y 0..191) */
   hit(cx, cy) {
-    for (const [i, r] of [[0, this.topRect], [1, this.botRect]]) {
+    const list = this.bottomShown ? [[1, this.botRect], [0, this.topRect]] : [[0, this.topRect]];
+    for (const [i, r] of list) {
       if (cx >= r.x && cx < r.x + r.w && cy >= r.y && cy < r.y + r.h) {
         return { screen: i, x: ((cx - r.x) / r.w) * W, y: ((cy - r.y) / r.h) * H };
       }
@@ -116,7 +126,7 @@ export class Screens {
     return { screen: -1, x: 0, y: 0 };
   }
 
-  /** DS-Pixel des oberen Bildschirms -> Bildschirmpunkt */
+  /** DS-Pixel eines Bildschirms -> Bildschirmpunkt */
   toClient(screen, x, y) {
     const r = screen === 0 ? this.topRect : this.botRect;
     return { x: r.x + (x / W) * r.w, y: r.y + (y / H) * r.h };
@@ -129,8 +139,17 @@ export class Screens {
   _draw(buf) {
     const n = W * H * 4;
     this.ctxTop.putImageData(new ImageData(new Uint8ClampedArray(buf.buffer, 0, n), W, H), 0, 0);
-    this.ctxBot.putImageData(new ImageData(new Uint8ClampedArray(buf.buffer, n, n), W, H), 0, 0);
+    if (this.bottomShown) this.ctxBot.putImageData(new ImageData(new Uint8ClampedArray(buf.buffer, n, n), W, H), 0, 0);
+    else this._lastBot = buf; // beim Einblenden sofort das aktuelle Bild zeigen
     this.drawn++;
+  }
+
+  flushBottom() {
+    if (this._lastBot) {
+      const n = W * H * 4;
+      this.ctxBot.putImageData(new ImageData(new Uint8ClampedArray(this._lastBot.buffer, n, n), W, H), 0, 0);
+      this._lastBot = null;
+    }
   }
 }
 

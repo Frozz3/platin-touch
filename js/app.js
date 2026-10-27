@@ -200,6 +200,7 @@ function onWorker(e) {
       status = m.st;
       if (autopilot) autopilot.update(status);
       if (overlay) overlay.update(status);
+      updateBottom();
       break;
     case 'menuPix': if (overlay) overlay.setPixels(m); break;
     case 'bridge':
@@ -289,6 +290,42 @@ async function keepAwake(on) {
   }
 }
 
+// ---------- Touchscreen ein-/ausblenden ----------
+// Draußen zeigt der Touchscreen nur den Pokétch: dann bleibt er weg und die Mitte ist Lauffläche.
+// Er fährt herein, sobald er gebraucht wird: Auswahl (Startmenü, Ja/Nein …), Kampf, Beutel, Team,
+// Tastatur, Intro – oder wenn man den Pokétch-Knopf drückt.
+let manualBottom = false;
+let keepBottomUntil = 0;
+function wantBottom(st) {
+  if (settings.touch === 'always' || !st.bridge || !st.bottomKnown) return true;
+  if (manualBottom || (overlay && overlay.active)) {
+    keepBottomUntil = performance.now() + 700;
+    return true;
+  }
+  const outside = st.fieldSeen && st.bottomFree; // Oberwelt läuft
+  if (screens.bottomShown) {
+    // erst ausblenden, wenn die Oberwelt eine Weile ohne Unterbrechung läuft
+    return !(outside && st.freeFor >= 20 && performance.now() > keepBottomUntil);
+  }
+  // Türen und Kartenwechsel unterbrechen die Oberwelt für etwa eine Sekunde: das ignorieren
+  return !st.fieldSeen || (!st.bottomFree && st.sinceFree > 110);
+}
+function updateBottom() {
+  if (!screens) return;
+  const show = wantBottom(status);
+  if (!show && manualBottom) manualBottom = false;
+  if (show !== screens.bottomShown) {
+    if (show && !(status.fieldSeen && status.bottomFree)) manualBottom = false; // automatisch: nicht festhalten
+    screens.setBottom(show);
+  }
+  // Hinweis in der Lauffläche: draußen laufen, sonst Cursor bewegen / bestätigen
+  const outside = !status.bridge || status.field || (status.fieldSeen && status.bottomFree && !(overlay && overlay.active) && !status.menuActive);
+  $('#app').classList.toggle('ctx-menu', !outside);
+  const b = $('#bTouch');
+  b.classList.toggle('on', manualBottom);
+  b.classList.toggle('auto', screens.bottomShown && !manualBottom);
+}
+
 // ---------- Einstellungen ----------
 function applySettings() {
   $('#app').classList.toggle('smooth', !!settings.smooth);
@@ -303,7 +340,7 @@ function openSheet() {
   $('#sheet').classList.remove('hidden');
   $('#sheetBack').classList.remove('hidden');
   $('#optRun').value = settings.run;
-  $('#optPad').value = String(settings.pad);
+  $('#optTouch').value = settings.touch === 'always' ? 'always' : 'auto';
   $('#optFF').value = String(settings.ff);
   $('#optFps').value = settings.fps;
   $('#optSmooth').checked = !!settings.smooth;
@@ -346,12 +383,22 @@ function wireUi() {
     emu.post({ type: 'speed', speed: ffOn ? settings.ff : 1 });
     if (!ffOn) audio.clear();
   });
+  $('#bTouch').addEventListener('click', () => {
+    audio.unlock();
+    // draußen den Touchscreen (Pokétch) zeigen bzw. wieder verstecken
+    keepBottomUntil = 0;
+    if (manualBottom) manualBottom = false;
+    else if (!screens.bottomShown) manualBottom = true;
+    else if (settings.touch === 'always' || (overlay && overlay.active) || !(status.fieldSeen && status.bottomFree)) toast('Der Touchscreen wird gerade gebraucht');
+    else screens.setBottom(false);
+    updateBottom();
+  });
   $('#bGear').addEventListener('click', openSheet);
   $('#sheetClose').addEventListener('click', closeSheet);
   $('#sheetBack').addEventListener('click', closeSheet);
 
   $('#optRun').addEventListener('change', (e) => { settings.run = e.target.value; save(); });
-  $('#optPad').addEventListener('change', (e) => { settings.pad = +e.target.value; save(); screens.setPadSize(settings.pad); });
+  $('#optTouch').addEventListener('change', (e) => { settings.touch = e.target.value; save(); updateBottom(); });
   $('#optFF').addEventListener('change', (e) => {
     settings.ff = +e.target.value; save();
     if (ffOn) emu.post({ type: 'speed', speed: settings.ff });
@@ -420,8 +467,8 @@ function wireUi() {
 
 // ---------- Start ----------
 async function main() {
-  screens = new Screens({ app: $('#app'), top: $('#top'), bot: $('#bot'), topWrap: $('#topWrap'), botWrap: $('#botWrap'), hinge: $('#hinge'), pad: $('#pad') });
-  screens.setPadSize(+settings.pad);
+  screens = new Screens({ app: $('#app'), top: $('#top'), bot: $('#bot'), topWrap: $('#topWrap'), botWrap: $('#botWrap'), pad: $('#pad') });
+  screens.onChange = (shown) => { if (!shown) gestures?.releaseBottom(); };
   overlay = new MenuOverlay($('#menuOv'));
   audio = new Audio();
   await audio.init().catch(() => {});

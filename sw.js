@@ -1,6 +1,6 @@
 // Service Worker: macht die App offline startklar (nach dem ersten Laden).
 // Die ROM und Spielstände liegen nicht hier, sondern in IndexedDB.
-const CACHE = 'platin-touch-v4';
+const CACHE = 'platin-touch-v5';
 const SHELL = [
   './', 'index.html', 'manifest.webmanifest', 'css/style.css',
   'js/app.js', 'js/autopilot.js', 'js/store.js', 'js/screen.js', 'js/gestures.js', 'js/audio.js', 'js/audio-worklet.js', 'js/emu-worker.js', 'js/menu-overlay.js',

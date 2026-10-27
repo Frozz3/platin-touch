@@ -1,10 +1,11 @@
 // Platin Touch – Gesten.
-//  - Unterer Bildschirm: wird direkt als DS-Touchscreen weitergegeben (Kampf, Pokétch, Tastatur …),
-//    außer ein Auswahlmenü wird dort angezeigt (menu-overlay.js): dann wählen die Knöpfe aus
-//  - Oberer Bildschirm und freie Fläche:
+//  - Lauffläche (Mitte) und oberer Bildschirm:
 //      Ziehen  = Laufen (schwebender Stick, weit ziehen = rennen)
 //      Ziehen in einem Menü = Liste/Cursor bewegen (wie Wischen am Handy)
-//      Tippen  = Menüeintrag wählen / Text weiter / ansprechen (A)
+//      Tippen  = Text weiter / ansprechen / markierten Eintrag bestätigen (A); oben auf eine Person = hinlaufen
+//  - Touchscreen (wenn eingeblendet): wird direkt als DS-Touchscreen weitergegeben (Kampf, Beutel, Tastatur …),
+//    außer ein Auswahlmenü wird dort angezeigt (menu-overlay.js): dann wählen die Knöpfe aus.
+//    Draußen ist Ziehen auf dem Touchscreen ebenfalls Laufen, kurz tippen bedient den Pokétch.
 
 export const K = { Right: 1, Left: 2, Down: 4, Up: 8, Select: 16, Start: 32, B: 64, A: 128, Y: 256, X: 512, L: 1024, R: 2048 };
 
@@ -32,6 +33,20 @@ export class Gestures {
     document.addEventListener('gesturestart', (e) => e.preventDefault());
     document.addEventListener('contextmenu', (e) => e.preventDefault());
     this._keyboard();
+  }
+
+  /** Touchscreen wurde ausgeblendet: laufende Berührung beenden */
+  releaseBottom() {
+    for (const [id, g] of this.ptr) {
+      if (g.mode === 'ds' || g.mode === 'ov') {
+        g.mode = 'none';
+        if (this.dsId === id) {
+          this.dsId = null;
+          this.emu.post({ type: 'touch', on: false, x: 0, y: 0 });
+        }
+      }
+    }
+    this.overlay?.setPressed(null);
   }
 
   // ---------- Tasten an den Emulator ----------
@@ -203,7 +218,7 @@ export class Gestures {
     } else if (h.screen === -1) {
       // freie Fläche: wie A, aber nicht bei offenem Menü (sonst würde der markierte Eintrag gewählt),
       // nicht im Kampfmenü (nur wenn ein Text wartet) und nicht in der Namenseingabe
-      // Im Steuerfeld bestätigt Tippen auch einen markierten Menüeintrag (wie die A-Taste).
+      // In der Lauffläche bestätigt Tippen auch einen markierten Menüeintrag (wie die A-Taste).
       const inPad = this.screens.inPad(cx, cy);
       const blocked = st.bridge && ((st.menuActive && !inPad) || st.noTapA || (st.battle && !st.textWaiting));
       if (!blocked) {

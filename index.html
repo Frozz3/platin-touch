@@ -31,6 +31,7 @@
     <symbol id="i-bike" viewBox="0 0 24 24"><path fill="currentColor" d="M15 4a1.5 1.5 0 1 1 0 3 1.5 1.5 0 0 1 0-3Zm-3.6 3.3 2.5 2.9H17v1.8h-3.9l-1.7-2-1.6 1.6 2.2 2.2V19h-1.8v-4.4L7.6 12a1 1 0 0 1 0-1.4l2.4-2.4a1 1 0 0 1 1.4 0ZM5.5 13a3.5 3.5 0 1 1 0 7 3.5 3.5 0 0 1 0-7Zm0 1.6a1.9 1.9 0 1 0 0 3.8 1.9 1.9 0 0 0 0-3.8Zm13-1.6a3.5 3.5 0 1 1 0 7 3.5 3.5 0 0 1 0-7Zm0 1.6a1.9 1.9 0 1 0 0 3.8 1.9 1.9 0 0 0 0-3.8Z"/></symbol>
     <symbol id="i-ff" viewBox="0 0 24 24"><path fill="currentColor" d="M3 6.5v11a1 1 0 0 0 1.6.8l7-5.5a1 1 0 0 0 0-1.6l-7-5.5A1 1 0 0 0 3 6.5Zm9 0v11a1 1 0 0 0 1.6.8l7-5.5a1 1 0 0 0 0-1.6l-7-5.5A1 1 0 0 0 12 6.5Z"/></symbol>
     <symbol id="i-gear" viewBox="0 0 24 24"><path fill="currentColor" d="M19.4 13a7.7 7.7 0 0 0 0-2l2-1.6a.5.5 0 0 0 .1-.6l-1.9-3.3a.5.5 0 0 0-.6-.2l-2.4 1a7.4 7.4 0 0 0-1.7-1l-.4-2.5a.5.5 0 0 0-.5-.4h-3.8a.5.5 0 0 0-.5.4l-.4 2.5a7.4 7.4 0 0 0-1.7 1l-2.4-1a.5.5 0 0 0-.6.2L2.6 8.8a.5.5 0 0 0 .1.6l2 1.6a7.7 7.7 0 0 0 0 2l-2 1.6a.5.5 0 0 0-.1.6l1.9 3.3c.1.2.4.3.6.2l2.4-1c.5.4 1.1.7 1.7 1l.4 2.5c0 .2.2.4.5.4h3.8c.3 0 .5-.2.5-.4l.4-2.5c.6-.3 1.2-.6 1.7-1l2.4 1c.2.1.5 0 .6-.2l1.9-3.3a.5.5 0 0 0-.1-.6l-2-1.6ZM12 15.5a3.5 3.5 0 1 1 0-7 3.5 3.5 0 0 1 0 7Z"/></symbol>
+    <symbol id="i-watch" viewBox="0 0 24 24"><path fill="currentColor" d="M8.6 2h6.8l.8 3.2A5 5 0 0 1 19 9.5v5a5 5 0 0 1-2.8 4.3l-.8 3.2H8.6l-.8-3.2A5 5 0 0 1 5 14.5v-5a5 5 0 0 1 2.8-4.3L8.6 2ZM10 7a3 3 0 0 0-3 3v4a3 3 0 0 0 3 3h4a3 3 0 0 0 3-3v-4a3 3 0 0 0-3-3h-4Zm1 2.5h2v2.6l1.6 1-.9 1.6-2.7-1.6V9.5Z"/></symbol>
     <symbol id="i-close" viewBox="0 0 24 24"><path fill="currentColor" d="M6.4 5 12 10.6 17.6 5 19 6.4 13.4 12l5.6 5.6-1.4 1.4-5.6-5.6L6.4 19 5 17.6l5.6-5.6L5 6.4 6.4 5Z"/></symbol>
   </defs>
 </svg>
@@ -38,14 +39,16 @@
 <div id="app">
   <div id="ds">
     <div class="screen" id="topWrap"><canvas id="top" width="256" height="192"></canvas></div>
-    <div id="hinge"></div>
     <div class="screen" id="botWrap"><canvas id="bot" width="256" height="192"></canvas><canvas id="menuOv" class="ov" width="256" height="192" style="display:none"></canvas></div>
   </div>
 
-  <!-- Steuerfeld zwischen Touchscreen und Leiste: Ziehen = laufen, Tippen = sprechen/weiter -->
+  <!-- Lauffläche unter dem oberen Bildschirm: Ziehen = laufen, Tippen = sprechen/weiter -->
   <div id="pad" aria-hidden="true">
-    <div class="pad-ring"><div class="pad-dot"></div></div>
-    <div class="pad-text"><b>Steuerfeld</b><span>Ziehen = laufen</span><span>Tippen = sprechen / weiter</span></div>
+    <div class="pad-hint">
+      <svg class="pad-icon" viewBox="0 0 48 48"><circle cx="24" cy="24" r="21" fill="none" stroke="currentColor" stroke-width="2" stroke-dasharray="3 5"/><circle cx="24" cy="24" r="8" fill="currentColor"/><path d="M24 4.5l4 5h-8zM24 43.5l4-5h-8zM4.5 24l5-4v8zM43.5 24l-5-4v8z" fill="currentColor"/></svg>
+      <div class="pad-text walk"><b>Ziehen = laufen</b><span>Tippen = sprechen / weiter</span></div>
+      <div class="pad-text menu"><b>Wischen = Cursor bewegen</b><span>Tippen = bestätigen (A)</span></div>
+    </div>
   </div>
 
   <!-- Gesten: liegt über allem außer der Leiste -->
@@ -56,14 +59,17 @@
   <div id="perf" class="hidden"></div>
 
   <nav id="bar">
-    <button class="tb" id="bBack" data-key="B" aria-label="Zurück">
+    <button class="tb" id="bBack" data-key="B" aria-label="Zurück (B)">
       <svg><use href="#i-back"/></svg><span>Zurück</span>
     </button>
-    <button class="tb main" id="bMenu" data-key="X" aria-label="Menü">
+    <button class="tb main" id="bMenu" data-key="X" aria-label="Menü (X)">
       <svg><use href="#i-ball"/></svg><span>Menü</span>
     </button>
     <button class="tb" id="bY" data-key="Y" aria-label="Item (Y)">
       <svg><use href="#i-bike"/></svg><span>Item</span>
+    </button>
+    <button class="tb" id="bTouch" aria-label="Touchscreen zeigen">
+      <svg><use href="#i-watch"/></svg><span>Pokétch</span>
     </button>
     <button class="tb" id="bFF" aria-label="Schneller">
       <svg><use href="#i-ff"/></svg><span>Tempo</span>
@@ -101,12 +107,11 @@
         </select>
       </label>
       <label class="row">Auswahl auf dem unteren Bildschirm <input type="checkbox" id="optMenus"></label>
-      <label class="row">Laufen auch auf dem unteren Bildschirm <input type="checkbox" id="optWalkBottom"></label>
-      <label class="row">Steuerfeld unten
-        <select id="optPad">
-          <option value="0">aus</option>
-          <option value="1">an</option>
-          <option value="2">groß (Bildschirme kleiner)</option>
+      <label class="row">Auf dem Touchscreen ziehen = laufen (draußen) <input type="checkbox" id="optWalkBottom"></label>
+      <label class="row">Touchscreen
+        <select id="optTouch">
+          <option value="auto">nur wenn gebraucht</option>
+          <option value="always">immer zeigen</option>
         </select>
       </label>
       <label class="row">Tempo-Knopf

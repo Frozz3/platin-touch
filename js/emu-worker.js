@@ -39,6 +39,7 @@ let ramBase = 0;
 let menusBottom = false; // Einstellung: Auswahlmenüs unten anzeigen
 let ownActive = false; // die App zeigt gerade ein Menü unten an
 let pixHash = -1;
+let freeStart = -1; // Bild, seit dem die Oberwelt ohne Unterbrechung läuft
 
 // Batteriespeicher
 let savDirtyAt = 0;
@@ -126,7 +127,18 @@ function readStatus() {
     battle: (frame - b32(84)) >>> 0 <= 3,
     ...fieldStatus(frame),
     ...ownStatus(frame),
+    ...bottomStatus(frame),
   };
+}
+
+// Läuft gerade die Oberwelt (unten nur der Pokétch)? Dann braucht die App den Touchscreen nicht zu zeigen.
+function bottomStatus(frame) {
+  if (b16(8) < 4) return { bottomKnown: false };
+  const sinceFree = (frame - b32(88)) >>> 0;
+  const free = sinceFree <= 2;
+  if (!free) freeStart = -1;
+  else if (freeStart < 0) freeStart = frame;
+  return { bottomKnown: true, bottomFree: free, sinceFree: Math.min(sinceFree, 99999), freeFor: free ? frame - freeStart : 0, fieldSeen: b32(96) !== 0 };
 }
 
 // Menü, das die App unten anzeigt (Brücke ab Version 4)
