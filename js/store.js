@@ -61,7 +61,7 @@ export async function persist() {
   return false;
 }
 
-const DEFAULTS = { pad: 1, menus: true, run: 'drag', ff: 3, fps: 'auto', smooth: false, volume: 80, perf: false, resume: true };
+const DEFAULTS = { pad: 1, menus: true, walkBottom: true, run: 'drag', ff: 3, fps: 'auto', smooth: false, volume: 80, perf: false, resume: true };
 
 export function loadSettings() {
   try {

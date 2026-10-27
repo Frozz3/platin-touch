@@ -59,11 +59,24 @@ export class Gestures {
     this.layer.setPointerCapture?.(e.pointerId);
     const h = this.screens.hit(e.clientX, e.clientY);
     const g = { id: e.pointerId, x0: e.clientX, y0: e.clientY, x: e.clientX, y: e.clientY, t0: performance.now(), mode: 'pending', samples: [], ax: 0, ay: 0, dir: null, screen: h.screen };
+    const st = this.status();
+    // Oberwelt (Spieler kann frei laufen): auf dem unteren Bildschirm Ziehen = laufen,
+    // kurz tippen bzw. still halten = Pokétch berühren
+    const walkBottom = h.screen === 1 && this.settings.walkBottom !== false && st.bridge && st.field && !st.menuActive && !st.textActive && !st.battle;
     if (h.screen === 1 && this.overlay?.active) {
       // Auswahlmenü unten: Knopf drücken, beim Loslassen auswählen
       g.mode = 'ov';
       g.btn = this.overlay.hit(h.x, h.y);
       this.overlay.setPressed(g.btn);
+    } else if (walkBottom && this.dsId === null) {
+      g.bottom = { x: h.x, y: h.y };
+      g.holdTimer = setTimeout(() => {
+        if (g.mode !== 'pending' || this.dsId !== null || !this.ptr.has(g.id)) return;
+        g.mode = 'ds';
+        this.dsId = g.id;
+        const r = this.screens.botRect;
+        this.emu.post({ type: 'touch', on: true, x: clamp(((g.x - r.x) / r.w) * 256, 0, 255), y: clamp(((g.y - r.y) / r.h) * 192, 0, 191) });
+      }, 350);
     } else if (h.screen === 1 && this.dsId === null) {
       g.mode = 'ds';
       this.dsId = e.pointerId;
@@ -135,6 +148,12 @@ export class Gestures {
     const g = this.ptr.get(e.pointerId);
     if (!g) return;
     this.ptr.delete(e.pointerId);
+    if (g.holdTimer) clearTimeout(g.holdTimer);
+    if (g.bottom && g.mode === 'pending') {
+      // kurz auf den unteren Bildschirm getippt (Oberwelt): als Berührung weitergeben
+      if (!cancel) this.emu.post({ type: 'touchTap', x: g.bottom.x, y: g.bottom.y, frames: 6 });
+      return;
+    }
     if (g.mode === 'ov') {
       const b = this.overlay.pressed;
       this.overlay.setPressed(null);

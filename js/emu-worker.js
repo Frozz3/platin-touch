@@ -1,7 +1,7 @@
 // Platin Touch – Emulator-Thread (Web Worker).
 // Hier läuft der DS-Kern (DeSmuME als WebAssembly). Die Seite selbst bleibt dadurch frei für
 // Touch-Eingaben und das Zeichnen. Nachrichten:
-//   Seite -> Worker: init, start, pause, keys, press, queue, touch, tap, speed, fps, volume, menusBottom,
+//   Seite -> Worker: init, start, pause, keys, press, queue, touch, touchTap, tap, speed, fps, volume, menusBottom,
 //                    stateSave, stateLoad, exportSave, importSave, reset, flush
 //   Worker -> Seite: ready, started, frame, audio, status, menuPix, sav, state, saveFile, error, log
 'use strict';
@@ -30,6 +30,7 @@ let pulses = []; // [{mask, frames}] – kurze Tastendrücke (nacheinander)
 let pulseNow = null;
 let pulseGap = 0;
 let touchOn = false, touchX = 0, touchY = 0;
+let tapFrames = 0, tapX = 0, tapY = 0; // kurzes Antippen des Touchscreens (einige Bilder lang)
 
 // Brücke ins Spiel
 let bridgeOff = -1; // Offset im Hauptspeicher
@@ -216,7 +217,9 @@ function runOne(draw) {
   const keys = currentKeys();
   writeAppFlags();
   const t = performance.now();
-  M._pt_runFrame(draw ? 1 : 0, keys, touchOn ? 1 : 0, touchX, touchY);
+  let tOn = touchOn, tX = touchX, tY = touchY;
+  if (!tOn && tapFrames > 0) { tapFrames--; tOn = true; tX = tapX; tY = tapY; }
+  M._pt_runFrame(draw ? 1 : 0, keys, tOn ? 1 : 0, tX, tY);
   const dt = performance.now() - t;
   perf.emu += dt;
   perf.n++;
@@ -346,6 +349,7 @@ self.onmessage = async (e) => {
       case 'queue': for (const q of m.items) pulses.push({ mask: q.mask, frames: q.frames || 3 }); break;
       case 'clearQueue': pulses = []; pulseNow = null; break;
       case 'touch': touchOn = !!m.on; touchX = m.x | 0; touchY = m.y | 0; break;
+      case 'touchTap': tapFrames = m.frames || 6; tapX = m.x | 0; tapY = m.y | 0; break;
       case 'tap': sendTap(m.x, m.y, m.screen); break;
       case 'speed': speed = Math.max(1, m.speed | 0); nextAt = 0; break;
       case 'fps': fpsMode = m.mode; break;

@@ -13,6 +13,7 @@ Die ROM gehört nicht in ein öffentliches Repository (`.gitignore` schließt `*
 | Geste | Wirkung |
 | --- | --- |
 | Ziehen im **Steuerfeld** (unter dem Touchscreen) oder auf dem oberen Bildschirm | Laufen. Ein Stick erscheint dort, wo der Finger aufsetzt. Weit ziehen = rennen (ab den Laufschuhen) |
+| Draußen auf dem **unteren Bildschirm** ziehen | ebenfalls laufen (wenn kein Menü und kein Text offen ist). Kurz tippen oder still halten = Pokétch bedienen. Abschaltbar unter „Mehr“ |
 | Im Steuerfeld tippen | sprechen / weiter / markierten Menüeintrag bestätigen (wie A) |
 | **Auswahl unten antippen** | Auswahlmenüs (Startmenü, Ja/Nein, Listen, Fragen im Spiel …) verschwinden oben und erscheinen unten als Knöpfe im Stil des Spiels. Antippen wählt aus, Wischen bewegt den Cursor, ▲/▼ blättert lange Listen |
 | Oben auf einen Menüeintrag tippen | Eintrag direkt auswählen, wo ein Menü oben bleibt (Hauptmenü, Pokéball bei der Starterwahl, Listen im Beutel; oder wenn „Auswahl auf dem unteren Bildschirm“ aus ist) |
