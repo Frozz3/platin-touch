@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Platin 3DS – Baufortschritt</title>
+<style>
+  :root {
+    --bg: #f4f5f7; --card: #ffffff; --text: #1b1d22; --muted: #646a75;
+    --track: #e3e6eb; --bar: #3a6fd8; --done: #2f9e5b; --err: #d0453a; --line: #e3e6eb;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #121418; --card: #1c1f25; --text: #e9ebef; --muted: #9aa1ad;
+      --track: #2b2f37; --bar: #5b8cf0; --done: #3fbf73; --err: #ef6a5f; --line: #2b2f37;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font: 16px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    padding: max(16px, env(safe-area-inset-top)) 16px max(24px, env(safe-area-inset-bottom));
+  }
+  main { max-width: 560px; margin: 0 auto; }
+  h1 { font-size: 1.3rem; margin: 8px 0 4px; }
+  .sub { color: var(--muted); font-size: .9rem; margin-bottom: 16px; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 16px; margin-bottom: 12px; }
+  .row { margin: 14px 0; }
+  .row:first-child { margin-top: 0; }
+  .row:last-child { margin-bottom: 0; }
+  .head { display: flex; justify-content: space-between; gap: 12px; font-weight: 600; }
+  .pct { font-variant-numeric: tabular-nums; }
+  .track { height: 10px; background: var(--track); border-radius: 999px; overflow: hidden; margin: 6px 0 4px; }
+  .fill { height: 100%; width: 0; background: var(--bar); border-radius: 999px; transition: width .8s ease; }
+  .fill.done { background: var(--done); }
+  .fill.err { background: var(--err); }
+  .detail { color: var(--muted); font-size: .88rem; }
+  .note { white-space: pre-wrap; }
+  .note:empty { display: none; }
+  .foot { color: var(--muted); font-size: .85rem; display: flex; justify-content: space-between; gap: 8px; align-items: center; }
+  button { font: inherit; border: 1px solid var(--line); background: var(--card); color: var(--text); border-radius: 10px; padding: 6px 12px; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Pokémon Platin für den 3DS</h1>
+  <div class="sub">Live-Stand des Builds, aktualisiert sich selbst</div>
+  <div class="card" id="items"><div class="detail">Lade …</div></div>
+  <div class="card note" id="note"></div>
+  <div class="foot"><span id="stamp">–</span><button id="reload" type="button">Jetzt prüfen</button></div>
+</main>
+<script>
+const URL_STATUS = 'https://api.github.com/repos/Frozz3/platin-touch/contents/status.json?ref=build-status';
+const POLL_MS = 75000; // GitHub erlaubt ohne Anmeldung 60 Abrufe pro Stunde
+const itemsEl = document.getElementById('items');
+const noteEl = document.getElementById('note');
+const stampEl = document.getElementById('stamp');
+let last = null;
+
+function render(s) {
+  itemsEl.textContent = '';
+  for (const it of s.items) {
+    const row = document.createElement('div'); row.className = 'row';
+    const head = document.createElement('div'); head.className = 'head';
+    const name = document.createElement('span'); name.textContent = it.name;
+    const pct = document.createElement('span'); pct.className = 'pct'; pct.textContent = it.pct + ' %';
+    head.append(name, pct);
+    const track = document.createElement('div'); track.className = 'track';
+    const fill = document.createElement('div'); fill.className = 'fill';
+    const err = /FEHLER/.test(it.detail || '');
+    if (err) fill.classList.add('err'); else if (it.pct >= 100) fill.classList.add('done');
+    track.append(fill);
+    const det = document.createElement('div'); det.className = 'detail'; det.textContent = it.detail || '';
+    row.append(head, track, det);
+    itemsEl.append(row);
+    requestAnimationFrame(() => { fill.style.width = Math.max(2, it.pct) + '%'; });
+  }
+  noteEl.textContent = s.note || '';
+}
+
+function ago(iso) {
+  const d = new Date(iso);
+  const t = d.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
+  const min = Math.round((Date.now() - d.getTime()) / 60000);
+  return `Letzte Änderung ${t} Uhr` + (min >= 1 ? ` (vor ${min} min)` : '');
+}
+
+async function load() {
+  try {
+    const r = await fetch(URL_STATUS, { headers: { Accept: 'application/vnd.github.raw+json' }, cache: 'no-store' });
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    const s = await r.json();
+    last = s;
+    render(s);
+    stampEl.textContent = ago(s.updated);
+  } catch (e) {
+    stampEl.textContent = 'Konnte nicht laden (' + e.message + '), neuer Versuch gleich';
+  }
+}
+
+document.getElementById('reload').addEventListener('click', load);
+setInterval(() => { if (last) stampEl.textContent = ago(last.updated); }, 30000);
+load();
+setInterval(load, POLL_MS);
+</script>
+</body>
+</html>
