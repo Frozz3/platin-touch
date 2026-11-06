@@ -1,0 +1,59 @@
+From ee848e524afd7047961b9348ad2550a87f20f492 Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Fri, 6 Nov 2026 16:45:53 +0100
+Subject: [PATCH] =?UTF-8?q?3DS:=20New-3DS-Modus=20(804=20MHz,=20L2-Cache)?=
+ =?UTF-8?q?=20f=C3=BCr=203dsx=20und=20CIA?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01PNQxqwcadpVJxrxYhxm3fL
+---
+ games/platinum/3ds/pokeplatinum.rsf | 9 ++++-----
+ games/platinum/3ds/src/3ds_main.c   | 8 ++++++++
+ 2 files changed, 12 insertions(+), 5 deletions(-)
+
+diff --git a/games/platinum/3ds/pokeplatinum.rsf b/games/platinum/3ds/pokeplatinum.rsf
+index b274a7aa..d46a97eb 100644
+--- a/games/platinum/3ds/pokeplatinum.rsf
++++ b/games/platinum/3ds/pokeplatinum.rsf
+@@ -64,12 +64,11 @@ AccessControlInfo:
+   RunnableOnSleep               : false
+   SpecialMemoryArrange          : true
+ 
+-  # A New 3DS runs this as a legacy Old 3DS title: the port is one thread on
+-  # core 0 and has no use for the extra memory or the faster clock, and
+-  # asking for them would make the New 3DS a second configuration to test.
++  # On a New 3DS: the 804 MHz clock and the L2 cache. The memory layout stays
++  # the Old 3DS one (Legacy), only the CPU gets faster.
+   SystemModeExt                 : Legacy
+-  CpuSpeed                      : 268MHz
+-  EnableL2Cache                 : false
++  CpuSpeed                      : 804MHz
++  EnableL2Cache                 : true
+   CanAccessCore2                : false
+ 
+   IORegisterMapping:
+diff --git a/games/platinum/3ds/src/3ds_main.c b/games/platinum/3ds/src/3ds_main.c
+index 7b21a8a9..8f17a7b5 100644
+--- a/games/platinum/3ds/src/3ds_main.c
++++ b/games/platinum/3ds/src/3ds_main.c
+@@ -244,6 +244,14 @@ int main(int argc, char **argv)
+     (void)argc;
+     (void)argv;
+ 
++    /*
++     * New 3DS: 804 MHz and the L2 cache. A no-op on an Old 3DS, and on a New
++     * 3DS it is what a .3dsx launched from hbmenu needs, since it does not get
++     * the CIA's exheader speed flags. svcGetSystemTick runs at the fixed
++     * SYSCLOCK_ARM11 rate either way, so the frame pacing is unaffected.
++     */
++    osSetSpeedupEnable(true);
++
+     gfxInitDefault();
+ 
+     /*
+-- 
+2.43.0
+
