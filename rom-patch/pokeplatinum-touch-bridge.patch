@@ -1,0 +1,1182 @@
+From 1b4901bda46552f8961887b7ef291afb7278c715 Mon Sep 17 00:00:00 2001
+From: Frozz3 <nicolasgall23@outlook.de>
+Date: Sat, 31 Oct 2026 22:59:03 +0100
+Subject: [PATCH] =?UTF-8?q?Platin=20Touch:=20Touch-Br=C3=BCcke=20v4=20(Aus?=
+ =?UTF-8?q?wahl=20unten,=20Junge/M=C3=A4dchen=20antippen)?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01PNQxqwcadpVJxrxYhxm3fL
+---
+ include/touch_bridge.h                        | 146 ++++++++
+ platinum.us/main.lsf.in                       |   1 +
+ src/applications/naming_screen.c              |   5 +
+ .../rowan_intro/rowan_intro_app.c             |  34 ++
+ src/battle/battle_main.c                      |   3 +
+ src/choose_starter/choose_starter_app.c       |  29 ++
+ src/field_system.c                            |   7 +
+ src/list_menu.c                               |  99 ++++++
+ src/main.c                                    |   4 +
+ src/main_menu/main_menu.c                     |  53 +++
+ src/menu.c                                    | 128 ++++++-
+ src/render_text.c                             |   5 +
+ src/start_menu.c                              |  15 +
+ src/touch_bridge.c                            | 311 ++++++++++++++++++
+ 14 files changed, 839 insertions(+), 1 deletion(-)
+ create mode 100644 include/touch_bridge.h
+ create mode 100644 src/touch_bridge.c
+
+diff --git a/include/touch_bridge.h b/include/touch_bridge.h
+new file mode 100644
+index 00000000..f12b2801
+--- /dev/null
++++ b/include/touch_bridge.h
+@@ -0,0 +1,146 @@
++#ifndef POKEPLATINUM_TOUCH_BRIDGE_H
++#define POKEPLATINUM_TOUCH_BRIDGE_H
++
++// Platin Touch: kleine Brücke zwischen dem Spiel und der Handy-App.
++//
++// Die App (Emulator im Browser) findet diese Struktur über die Kennung im Arbeitsspeicher.
++// Sie schreibt Antipp-Ereignisse hinein (Koordinaten auf dem oberen oder unteren Bildschirm),
++// das Spiel wertet sie in seinen Menüs aus (Eintrag direkt auswählen) und meldet zurück,
++// was es gerade zeigt. Ohne App ändert sich am Spiel nichts: solange die App nichts schreibt,
++// bleibt alles wie im Original.
++
++#include <nitro.h>
++
++#include "field/field_system_decl.h"
++
++#include "bg_window.h"
++
++#define TOUCH_BRIDGE_MAGIC0  0x31425450 // "PTB1"
++#define TOUCH_BRIDGE_MAGIC1  0x48435554 // "TUCH"
++#define TOUCH_BRIDGE_VERSION 4
++
++// tapResult
++#define TB_TAP_NONE    0
++#define TB_TAP_HIT     1 // Menüeintrag getroffen und ausgewählt
++#define TB_TAP_MISS    2 // Menü aktiv, aber daneben getippt (ignoriert)
++#define TB_TAP_BUTTON  3 // kein Menü: als A-Taste ausgeführt
++#define TB_TAP_DROPPED 4 // verworfen (z. B. Menü gerade erst geschlossen)
++#define TB_TAP_SCROLL  5 // Pfeil einer Liste getroffen: eine Seite weiter
++
++// appFlags (App -> Spiel)
++#define TB_APP_TAP_IS_A 0x01 // Tippen ohne Menü löst A aus (nur oberer Bildschirm)
++#define TB_APP_MENUS_BOTTOM 0x02 // Auswahlmenüs vom oberen Bildschirm zeigt die App unten an
++
++// menuKind
++#define TB_MENU_NONE 0
++#define TB_MENU_MENU 1
++#define TB_MENU_LIST 2
++
++#define TB_MAX_NPCS 20
++
++// Figur auf der Karte: Fußpunkt auf dem Bildschirm (Pixel oben) und Kachel
++typedef struct TouchBridgeNpc {
++    s16 screenX;
++    s16 screenY;
++    s16 tileX;
++    s16 tileZ;
++} TouchBridgeNpc;
++
++typedef struct TouchBridge {
++    u32 magic0; // 0
++    u32 magic1; // 4
++    u16 version; // 8
++    u16 size; // 10
++    u32 frame; // 12  Bildzähler der Brücke
++    // ---- App -> Spiel ----
++    u8 tapSeq; // 16  laufende Nummer, die App erhöht sie bei jedem Tippen
++    u8 tapX; // 17
++    u8 tapY; // 18
++    u8 tapScreen; // 19  0 = oben, 1 = unten
++    u8 appFlags; // 20
++    u8 appHeartbeat; // 21
++    u8 appReserved0; // 22
++    u8 appReserved1; // 23
++    // ---- Spiel -> App ----
++    u8 tapAck; // 24  zuletzt bearbeitete Nummer
++    u8 tapResult; // 25
++    u8 menuKind; // 26  zuletzt aktives Menü (das Eingaben abgefragt hat)
++    u8 menuScreen; // 27  0 = oben, 1 = unten
++    u32 menuFrame; // 28  Bild, in dem es zuletzt Eingaben abgefragt hat
++    s16 menuX; // 32  Fenster in Bildschirm-Pixeln
++    s16 menuY; // 34
++    u16 menuW; // 36
++    u16 menuH; // 38
++    u8 menuRows; // 40  sichtbare Zeilen
++    u8 menuCols; // 41
++    u8 menuCursor; // 42  Zeile des Cursors (Liste: sichtbare Zeile)
++    u8 menuRowH; // 43
++    u16 listPos; // 44  Liste: erster sichtbarer Eintrag
++    u16 listCount; // 46  Liste: Anzahl Einträge
++    s16 itemY0; // 48  y der ersten Zeile
++    s16 itemX0; // 50
++    u16 colW; // 52
++    u8 dispSelect; // 54  1 = Haupt-Engine oben
++    u8 screen3D; // 55  gSystem.whichScreenIs3D
++    u32 systemAddr; // 56  &gSystem
++    u32 menusSeen; // 60  Zähler (Diagnose)
++    u32 tapsHit; // 64
++    u32 tapsAsA; // 68
++    u32 noTapAUntil; // 72  bis zu diesem Bild löst Tippen kein A aus (z. B. Namenseingabe)
++    u32 textFrame; // 76  Bild, in dem zuletzt Text gedruckt wurde oder auf Weiter gewartet hat
++    u32 textWaitFrame; // 80  Bild, in dem ein Text zuletzt auf A/Weiter gewartet hat
++    u32 battleFrame; // 84  Bild, in dem zuletzt ein Kampf lief
++    u32 bottomFreeFrame; // 88  Bild, in dem der untere Bildschirm frei war (Oberwelt, Intro): dann auch Listen unten
++    u32 reserved1; // 92
++    // ---- Oberwelt (nur wenn der Spieler frei laufen kann) ----
++    u32 fieldFrame; // 96  Bild, in dem die Oberwelt zuletzt Eingaben angenommen hat
++    s16 playerX; // 100  Kachel
++    s16 playerZ; // 102
++    u8 playerDir; // 104  0 = oben, 1 = unten, 2 = links, 3 = rechts
++    u8 npcCount; // 105
++    u8 fieldPad[2]; // 106
++    TouchBridgeNpc npcs[TB_MAX_NPCS]; // 108 .. 268
++    // ---- Menü, das die App unten anzeigt (nur mit TB_APP_MENUS_BOTTOM) ----
++    u32 ownFrame; // 268  Bild, in dem das Menü oben ausgeblendet und hier beschrieben wurde
++    u32 pixAddr; // 272  Pixel des Menüfensters (Kacheln, 4 bpp, 32 Byte je Kachel)
++    u8 tilesW; // 276  Fenstergröße in Kacheln
++    u8 tilesH; // 277
++    u8 colorMode; // 278  0 = 16 Farben
++    u8 menuStyle; // 279  0 = normal, 1 = Ja/Nein
++    u8 labelX; // 280  ab hier beginnt der Text einer Zeile (Pixel im Fenster, links davon der Cursor)
++    u8 bgIndex; // 281  Hintergrundfarbe des Fensters (Farbnummer)
++    u8 ownPad[2]; // 282
++    u16 pal[16]; // 284  Farben des Fensters (BGR555)
++} TouchBridge; // 316
++
++extern TouchBridge gTouchBridge;
++
++void TouchBridge_Init(void);
++// einmal pro Bild direkt nach dem Lesen der Tasten aufrufen
++void TouchBridge_Frame(void);
++
++// Liegt ein Antippen für diesen Bildschirm vor? Dann wird es hier entnommen.
++BOOL TouchBridge_TakeTap(int screen, int *outX, int *outY);
++void TouchBridge_TapResult(u8 result);
++// Bildschirm (0 oben / 1 unten), auf dem eine BG-Ebene gerade zu sehen ist
++int TouchBridge_LayerScreen(u8 bgLayer);
++// Für Bildschirme, auf denen Tippen oben nichts bedeuten soll (jedes Bild aufrufen)
++void TouchBridge_SuppressTapA(void);
++// Text wird gedruckt (waiting = FALSE) oder wartet auf Weiter (TRUE)
++void TouchBridge_NoteText(BOOL waiting);
++// Kampf läuft (jedes Bild aus Battle_Main)
++void TouchBridge_NoteBattle(void);
++// Oberwelt: einmal pro Bild, wenn der Spieler frei laufen kann (aus field_system.c)
++void TouchBridge_FieldFrame(FieldSystem *fieldSystem);
++// Auswahlmenü oben: zeigt die App es unten an, wird es hier oben ausgeblendet (jedes Bild nach der
++// Eingabe aufrufen). Rückgabe TRUE = die App zeigt das Menü.
++// Kleine Auswahlmenüs (Menu) übernimmt die App überall, Listen (ListMenu) nur, wenn der untere
++// Bildschirm gerade nichts Eigenes zu bedienen hat (Oberwelt, Intro), sonst z. B. nicht im Beutel.
++BOOL TouchBridge_OwnMenuWindow(Window *window, int labelX, int bgIndex, int style, BOOL isList);
++// Der untere Bildschirm hat gerade nichts Eigenes zu bedienen (jedes Bild aufrufen)
++void TouchBridge_NoteBottomFree(void);
++// Hat die App im aktuellen Bild ein Menü übernommen?
++BOOL TouchBridge_MenuOwned(void);
++void TouchBridge_NoteMenu(u8 kind, u8 screen, int x, int y, int w, int h, int rows, int cols, int cursor, int rowH, int itemX0, int itemY0, int colW, int listPos, int listCount);
++
++#endif // POKEPLATINUM_TOUCH_BRIDGE_H
+diff --git a/platinum.us/main.lsf.in b/platinum.us/main.lsf.in
+index 66912a23..509abf56 100644
+--- a/platinum.us/main.lsf.in
++++ b/platinum.us/main.lsf.in
+@@ -69,6 +69,7 @@ Static main
+ 	Object src/play_time_manager.c
+ 	Object src/unk_02017498.c
+ 	Object src/system.c
++	Object src/touch_bridge.c
+ 	Object src/heap.c
+ 	Object src/bg_window.c
+ 	Object src/easy3d.c
+diff --git a/src/applications/naming_screen.c b/src/applications/naming_screen.c
+index 7478b1bd..70716803 100644
+--- a/src/applications/naming_screen.c
++++ b/src/applications/naming_screen.c
+@@ -48,6 +48,8 @@
+ #include "unk_0201567C.h"
+ #include "vram_transfer.h"
+ 
++#include "touch_bridge.h"
++
+ #include "res/graphics/naming_screen/namein.naix"
+ #include "res/text/bank/generic_names.h"
+ #include "res/text/bank/naming_screen.h"
+@@ -1180,6 +1182,9 @@ static BOOL NamingScreen_Main(ApplicationManager *appMan, int *state)
+ {
+     NamingScreen *namingScreen = ApplicationManager_Data(appMan);
+ 
++    // Platin Touch: oben tippen soll hier keine Buchstaben eingeben (Tastatur ist unten)
++    TouchBridge_SuppressTapA();
++
+     switch (*state) {
+     case NMS_APP_STATE_WAIT_FADE_IN:
+         if (IsScreenFadeDone()) {
+diff --git a/src/applications/rowan_intro/rowan_intro_app.c b/src/applications/rowan_intro/rowan_intro_app.c
+index 068ea99c..eb44c911 100644
+--- a/src/applications/rowan_intro/rowan_intro_app.c
++++ b/src/applications/rowan_intro/rowan_intro_app.c
+@@ -42,6 +42,7 @@
+ #include "trainer_info.h"
+ #include "unk_0201567C.h"
+ #include "yes_no_touch_menu.h"
++#include "touch_bridge.h"
+ 
+ #include "res/text/bank/rowan_intro.h"
+ 
+@@ -334,11 +335,42 @@ BOOL RowanIntro_Init(ApplicationManager *appMan, int *unusedState)
+     return TRUE;
+ }
+ 
++// Platin Touch: Junge (rechts) oder Mädchen (links) oben antippen wählt die Figur aus und bestätigt sie
++// (danach fragt das Spiel wie gewohnt mit Ja/Nein nach).
++static void RowanIntro_TouchSelectGender(RowanIntro *manager)
++{
++    int tapX, tapY;
++
++    TouchBridge_NoteMenu(TB_MENU_MENU, 0, 0, 0, 256, 144, 1, 2, manager->playerGender == GENDER_MALE ? 1 : 0, 144, 0, 0, 128, 0, 2);
++
++    if (!TouchBridge_TakeTap(0, &tapX, &tapY)) {
++        return;
++    }
++
++    if (tapY >= 144) {
++        TouchBridge_TapResult(TB_TAP_MISS); // Textfeld
++        return;
++    }
++
++    enum Gender gender = tapX < 128 ? GENDER_FEMALE : GENDER_MALE;
++
++    if (gender != manager->playerGender) {
++        manager->playerGender = gender;
++        Sound_PlayEffect(SE_CONFIRM_sseq_3);
++    }
++
++    gSystem.pressedKeys |= PAD_BUTTON_A;
++    TouchBridge_TapResult(TB_TAP_HIT);
++}
++
+ BOOL RowanIntro_Main(ApplicationManager *appMan, int *state)
+ {
+     RowanIntro *manager = ApplicationManager_Data(appMan);
+     BOOL isFinished = FALSE;
+ 
++    // Platin Touch: der untere Bildschirm zeigt hier nichts zum Bedienen (außer dem eigenen Ja/Nein)
++    TouchBridge_NoteBottomFree();
++
+     switch (*state) {
+     case RI_APP_STATE_INIT:
+         SetScreenColorBrightness(DS_SCREEN_MAIN, COLOR_BLACK);
+@@ -2603,6 +2635,8 @@ static BOOL RowanIntro_Run(RowanIntro *manager)
+         }
+         break;
+     case RI_STATE_GENDR_CHOICE:
++        RowanIntro_TouchSelectGender(manager);
++
+         if ((gSystem.pressedKeys & PAD_BUTTON_A) == PAD_BUTTON_A) {
+             manager->fadeBgLayerCurAlpha = 6;
+             manager->fadeBgLayerCurAlphaInv = 10;
+diff --git a/src/battle/battle_main.c b/src/battle/battle_main.c
+index dc92931e..5d43bb23 100644
+--- a/src/battle/battle_main.c
++++ b/src/battle/battle_main.c
+@@ -76,6 +76,7 @@
+ #include "sys_task.h"
+ #include "sys_task_manager.h"
+ #include "system.h"
++#include "touch_bridge.h"
+ #include "text.h"
+ #include "touch_pad.h"
+ #include "trainer_info.h"
+@@ -183,6 +184,8 @@ BOOL Battle_Main(ApplicationManager *appMan, int *state)
+ {
+     FieldBattleDTO *dto = ApplicationManager_Args(appMan);
+ 
++    TouchBridge_NoteBattle();
++
+     switch (*state) {
+     case BATTLE_STATE_CREATE_HEAP:
+         Heap_Create(HEAP_ID_APPLICATION, HEAP_ID_BATTLE, 0xB0000);
+diff --git a/src/choose_starter/choose_starter_app.c b/src/choose_starter/choose_starter_app.c
+index aac91f83..d4fd6f0d 100644
+--- a/src/choose_starter/choose_starter_app.c
++++ b/src/choose_starter/choose_starter_app.c
+@@ -41,6 +41,7 @@
+ #include "sys_task.h"
+ #include "sys_task_manager.h"
+ #include "system.h"
++#include "touch_bridge.h"
+ #include "text.h"
+ #include "touch_pad.h"
+ #include "unk_0202419C.h"
+@@ -1118,6 +1119,34 @@ static void SetSelectionMatrixObjects(ChooseStarterApp *app)
+ 
+ static void ChangePokeballChoice(ChooseStarterApp *app)
+ {
++    // Platin Touch: Pokéball antippen = auswählen (danach folgt die Ja/Nein-Frage)
++    TouchBridge_NoteMenu(TB_MENU_MENU, 0, 40, 20, 180, 110, 1, 3, app->cursorPosition, 110, 40, 20, 60, 0, 3);
++
++    int tapX, tapY;
++    if (TouchBridge_TakeTap(0, &tapX, &tapY)) {
++        int best = -1, bestDist = 40 * 40;
++
++        for (int i = 0; i < 3; i++) {
++            int dx = tapX - app->otherSelectionMatrix[i][0];
++            int dy = tapY - (app->otherSelectionMatrix[i][1] + 22);
++            int d = dx * dx + dy * dy;
++
++            if (d < bestDist) {
++                bestDist = d;
++                best = i;
++            }
++        }
++
++        if (best >= 0) {
++            app->cursorPosition = best;
++            gSystem.pressedKeys |= PAD_BUTTON_A;
++            TouchBridge_TapResult(TB_TAP_HIT);
++            return;
++        }
++
++        TouchBridge_TapResult(TB_TAP_MISS);
++    }
++
+     if (gSystem.pressedKeys & PAD_KEY_LEFT) {
+         if (app->cursorPosition - 1 >= 0) {
+             app->cursorPosition -= 1;
+diff --git a/src/field_system.c b/src/field_system.c
+index 3c861c44..3fd8b76a 100644
+--- a/src/field_system.c
++++ b/src/field_system.c
+@@ -37,6 +37,7 @@
+ #include "pokeradar.h"
+ #include "savedata.h"
+ #include "system.h"
++#include "touch_bridge.h"
+ #include "unk_0209C370.h"
+ 
+ FS_EXTERN_OVERLAY(overlay5);
+@@ -204,6 +205,11 @@ static void ExecuteAndCleanupIfDone(ApplicationManager **appManPtr)
+ 
+ static BOOL HandleInputsEventsAndProcesses(FieldSystem *fieldSystem)
+ {
++    // Platin Touch: Oberwelt zu sehen, unten nur der Pokétch: Listen dürfen nach unten
++    if (FieldSystem_IsRunningFieldMapInner(fieldSystem)) {
++        TouchBridge_NoteBottomFree();
++    }
++
+     HandleFieldInput(fieldSystem);
+     if (FieldTask_Run(fieldSystem) == TRUE && fieldSystem->unk_04 != NULL) {
+         FieldSystem_SendPoketchEvent(fieldSystem, POKETCH_EVENT_SLEEP, 0);
+@@ -239,6 +245,7 @@ static void HandleFieldInput(FieldSystem *fieldSystem)
+ 
+     FieldInput fieldInput;
+     if (processInput) {
++        TouchBridge_FieldFrame(fieldSystem);
+         PlayerAvatar_UpdatePlayerMoveState(fieldSystem->playerAvatar);
+         FieldInput_Update(&fieldInput, fieldSystem, gSystem.pressedKeys, gSystem.heldKeys);
+     }
+diff --git a/src/list_menu.c b/src/list_menu.c
+index f601e209..209727d1 100644
+--- a/src/list_menu.c
++++ b/src/list_menu.c
+@@ -11,6 +11,7 @@
+ #include "string_list.h"
+ #include "system.h"
+ #include "text.h"
++#include "touch_bridge.h"
+ 
+ static void PrintEntry(ListMenu *menu, void *string, u8 xOffset, u8 yOffset);
+ static void PrintEntries(ListMenu *menu, u16 startIndex, u16 lineOffset, u16 lineCount);
+@@ -20,6 +21,8 @@ static u8 UpdateOffsetsForScroll(ListMenu *menu, u8 movingDown);
+ static void ScrollList(ListMenu *menu, u8 lineCount, u8 isUpward);
+ static u8 UpdateSelectedRow(ListMenu *menu, u8 updateCursor, u8 scrollCount, u8 movingDown);
+ static void InvokeCursorCallback(ListMenu *menu, u8 onInit);
++static int TryTouchSelect(ListMenu *menu);
++static u32 ProcessInputInner(ListMenu *menu);
+ 
+ ListMenu *ListMenu_New(const ListMenuTemplate *template, u16 startListPos, u16 startCursorPos, u8 heapID)
+ {
+@@ -57,9 +60,25 @@ ListMenu *ListMenu_New(const ListMenuTemplate *template, u16 startListPos, u16 s
+ }
+ 
+ u32 ListMenu_ProcessInput(ListMenu *menu)
++{
++    u32 result = ProcessInputInner(menu);
++
++    // Platin Touch: zeigt die App die Liste unten an, verschwindet sie oben
++    TouchBridge_OwnMenuWindow(menu->template.window, menu->template.textXOffset, menu->template.textColorBg, 0, TRUE);
++    return result;
++}
++
++static u32 ProcessInputInner(ListMenu *menu)
+ {
+     menu->lastAction = LIST_MENU_ACTION_NONE;
+ 
++    int touched = TryTouchSelect(menu);
++    if (touched == 1) {
++        return menu->template.choices[menu->listPos + menu->cursorPos].index;
++    } else if (touched == 2) {
++        return MENU_NOTHING_CHOSEN;
++    }
++
+     if (JOY_NEW(PAD_BUTTON_A)) {
+         return menu->template.choices[menu->listPos + menu->cursorPos].index;
+     }
+@@ -561,3 +580,83 @@ static void InvokeCursorCallback(ListMenu *menu, u8 onInit)
+         menu->template.cursorCallback(menu, menu->template.choices[menu->listPos + menu->cursorPos].index, onInit);
+     }
+ }
++
++// Platin Touch: Antippen einer Listenzeile (über die TouchBridge) wählt sie direkt aus,
++// Antippen knapp über/unter der Liste (Pfeile) blättert eine Seite weiter.
++// Rückgabe: 1 = Eintrag gewählt, 2 = geblättert, 0 = nichts.
++static int TryTouchSelect(ListMenu *menu)
++{
++    Window *window = menu->template.window;
++
++    if (window == NULL || menu->template.maxDisplay == 0) {
++        return 0;
++    }
++
++    int screen = TouchBridge_LayerScreen(window->bgLayer);
++    int originX = window->tilemapLeft * 8 - Bg_GetXOffset(window->bgConfig, window->bgLayer);
++    int originY = window->tilemapTop * 8 - Bg_GetYOffset(window->bgConfig, window->bgLayer);
++    int rowH = Font_GetAttribute(menu->template.fontID, FONTATTR_MAX_LETTER_HEIGHT) + menu->template.lineSpacing;
++    int width = window->width * 8;
++    int height = window->height * 8;
++    int firstY = originY + menu->template.yOffset;
++
++    if (rowH <= 0) {
++        rowH = 16;
++    }
++
++    TouchBridge_NoteMenu(TB_MENU_LIST, screen, originX, originY, width, height, menu->template.maxDisplay, 1, menu->cursorPos, rowH, originX, firstY, width, menu->listPos, menu->template.count);
++
++    int tapX, tapY;
++    if (!TouchBridge_TakeTap(screen, &tapX, &tapY)) {
++        return 0;
++    }
++
++    if (tapX < originX - 6 || tapX >= originX + width + 6) {
++        TouchBridge_TapResult(TB_TAP_MISS);
++        return 0;
++    }
++
++    if (tapY < firstY) {
++        if (tapY >= originY - 16 && menu->listPos > 0) {
++            UpdateSelectedRow(menu, TRUE, menu->template.maxDisplay, FALSE);
++            menu->lastAction = LIST_MENU_ACTION_PAGE_UP;
++            TouchBridge_TapResult(TB_TAP_SCROLL);
++            return 2;
++        }
++
++        TouchBridge_TapResult(TB_TAP_MISS);
++        return 0;
++    }
++
++    int row = (tapY - firstY) / rowH;
++
++    if (row >= menu->template.maxDisplay) {
++        if (tapY < originY + height + 16 && menu->listPos + menu->template.maxDisplay < menu->template.count) {
++            UpdateSelectedRow(menu, TRUE, menu->template.maxDisplay, TRUE);
++            menu->lastAction = LIST_MENU_ACTION_PAGE_DOWN;
++            TouchBridge_TapResult(TB_TAP_SCROLL);
++            return 2;
++        }
++
++        TouchBridge_TapResult(TB_TAP_MISS);
++        return 0;
++    }
++
++    if (menu->listPos + row >= menu->template.count || menu->template.choices[menu->listPos + row].index == MENU_HEADER) {
++        TouchBridge_TapResult(TB_TAP_MISS);
++        return 0;
++    }
++
++    if (row != menu->cursorPos) {
++        u16 oldPos = menu->cursorPos;
++
++        EraseCursor(menu, oldPos);
++        menu->cursorPos = row;
++        PrintCursor(menu);
++        InvokeCursorCallback(menu, FALSE);
++        Window_CopyToVRAM(menu->template.window);
++    }
++
++    TouchBridge_TapResult(TB_TAP_HIT);
++    return 1;
++}
+diff --git a/src/main.c b/src/main.c
+index b32d41e7..b0a13ed5 100644
+--- a/src/main.c
++++ b/src/main.c
+@@ -26,6 +26,7 @@
+ #include "sys_task_manager.h"
+ #include "system.h"
+ #include "timer.h"
++#include "touch_bridge.h"
+ #include "touch_pad.h"
+ #include "unk_0202419C.h"
+ #include "unk_02038FFC.h"
+@@ -66,6 +67,7 @@ void NitroMain(void)
+     InitSystem();
+     InitVRAM();
+     InitKeypadAndTouchpad();
++    TouchBridge_Init();
+ 
+     SetGBACartridgeVersion(VERSION_NONE);
+     PM_GetBackLight(&sSavedBacklightState, NULL);
+@@ -122,6 +124,7 @@ void NitroMain(void)
+         CheckHeapCanary();
+         HandleConsoleFold();
+         ReadKeypadAndTouchpad();
++        TouchBridge_Frame();
+ 
+         if ((gSystem.heldKeysRaw & RESET_COMBO) == RESET_COMBO && !gSystem.inhibitReset) {
+             SoftReset(RESET_CLEAN);
+@@ -288,6 +291,7 @@ static void HeapCanaryFailed(int resetParam, int param1)
+     while (TRUE) {
+         HandleConsoleFold();
+         ReadKeypadAndTouchpad();
++        TouchBridge_Frame();
+ 
+         if (elapsed >= 30 && gSystem.pressedKeys & PAD_BUTTON_A) {
+             break;
+diff --git a/src/main_menu/main_menu.c b/src/main_menu/main_menu.c
+index fc64fb31..da9e4886 100644
+--- a/src/main_menu/main_menu.c
++++ b/src/main_menu/main_menu.c
+@@ -50,6 +50,8 @@
+ #include "vram_transfer.h"
+ 
+ #include "res/graphics/main_menu/main_menu_graphics.naix"
++#include "touch_bridge.h"
++
+ #include "res/text/bank/main_menu_alerts.h"
+ #include "res/text/bank/main_menu_options.h"
+ #include "res/text/bank/unk_0695.h"
+@@ -953,6 +955,55 @@ static void RenderOptionsFrames(MainMenuAppData *appData, enum MainMenuOption fo
+     Bg_CopyTilemapBufferToVRAM(appData->bgConfig, BG_LAYER_MAIN_0);
+ }
+ 
++// Platin Touch: Antippen eines Eintrags (über die TouchBridge) wählt ihn wie mit A aus.
++static void TryTouchSelectOption(MainMenuAppData *appData)
++{
++    int screen = TouchBridge_LayerScreen(BG_LAYER_MAIN_0);
++    int scrollY = Bg_GetYOffset(appData->bgConfig, BG_LAYER_MAIN_0);
++    Window *focused = &appData->optionWindows[appData->focusedOption];
++
++    if (Window_IsInUse(focused)) {
++        int fx = (Window_GetXPos(focused) - 1) * TILE_HEIGHT_PIXELS;
++        int fy = (Window_GetYPos(focused) - 1) * TILE_HEIGHT_PIXELS - scrollY;
++        int fw = (Window_GetWidth(focused) + 2) * TILE_HEIGHT_PIXELS;
++        int fh = (Window_GetHeight(focused) + 2) * TILE_HEIGHT_PIXELS;
++
++        TouchBridge_NoteMenu(TB_MENU_MENU, screen, fx, fy, fw, fh, 1, 1, 0, fh, fx, fy, fw, 0, NUM_MAIN_MENU_OPTIONS);
++    }
++
++    int tapX, tapY;
++    if (!TouchBridge_TakeTap(screen, &tapX, &tapY)) {
++        return;
++    }
++
++    for (int i = 0; i < NUM_MAIN_MENU_OPTIONS; i++) {
++        Window *window = &appData->optionWindows[i];
++
++        if (appData->optionApps[i] == 0 || Window_IsInUse(window) == FALSE) {
++            continue;
++        }
++
++        // Fenster samt Rahmen (eine Kachel ringsum)
++        int x = (Window_GetXPos(window) - 1) * TILE_HEIGHT_PIXELS;
++        int y = (Window_GetYPos(window) - 1) * TILE_HEIGHT_PIXELS - scrollY;
++        int w = (Window_GetWidth(window) + 2) * TILE_HEIGHT_PIXELS;
++        int h = (Window_GetHeight(window) + 2) * TILE_HEIGHT_PIXELS;
++
++        if (tapX >= x && tapX < x + w && tapY >= y && tapY < y + h) {
++            if (appData->focusedOption != i) {
++                appData->focusedOption = i;
++                RenderOptionsFrames(appData, appData->focusedOption);
++            }
++
++            gSystem.pressedKeys |= PAD_BUTTON_A;
++            TouchBridge_TapResult(TB_TAP_HIT);
++            return;
++        }
++    }
++
++    TouchBridge_TapResult(TB_TAP_MISS);
++}
++
+ static void FocusNextOption(MainMenuAppData *appData, int direction)
+ {
+     int nextFocused = appData->focusedOption;
+@@ -1201,6 +1252,8 @@ static BOOL MainMenu_Main(ApplicationManager *appMan, int *state)
+         appData->wirelessCheckState = MAIN_MENU_WIRELESS_CHECK_START;
+         break;
+     case MAIN_MENU_STATE_SELECT_OPTION:
++        TryTouchSelectOption(appData);
++
+         if (JOY_NEW(PAD_BUTTON_A | PAD_BUTTON_B)) {
+             if (JOY_NEW(PAD_BUTTON_A)) {
+                 Sound_PlayEffect(SE_CONFIRM_sseq_3);
+diff --git a/src/menu.c b/src/menu.c
+index aca99610..40435e80 100644
+--- a/src/menu.c
++++ b/src/menu.c
+@@ -10,6 +10,7 @@
+ #include "string_list.h"
+ #include "system.h"
+ #include "text.h"
++#include "touch_bridge.h"
+ 
+ #include "res/text/bank/menu_entries.h"
+ 
+@@ -19,6 +20,10 @@ static u8 CalcMaxEntryWidth(Menu *menu);
+ static void DrawWholeMenu(Menu *menu);
+ static void DrawCursor(Menu *menu);
+ static void CalcCursorDrawCoords(Menu *menu, u8 *outX, u8 *outY, u8 cursorPos);
++static int TryTouchSelect(Menu *menu);
++static u32 ProcessInputInner(Menu *menu);
++static u32 ProcessInputWithSoundInner(Menu *menu, u16 sdatID);
++static void TouchBridgeOwn(Menu *menu);
+ 
+ Menu *Menu_New(const MenuTemplate *template, u8 xOffset, u8 yOffset, u8 cursorStart, u8 heapID, u32 cancelKeys)
+ {
+@@ -65,9 +70,48 @@ void Menu_Free(Menu *menu, u8 *outCursorPos)
+ }
+ 
+ u32 Menu_ProcessInput(Menu *menu)
++{
++    u32 result = ProcessInputInner(menu);
++
++    TouchBridgeOwn(menu);
++    return result;
++}
++
++u32 Menu_ProcessInputWithSound(Menu *menu, u16 sdatID)
++{
++    u32 result = ProcessInputWithSoundInner(menu, sdatID);
++
++    TouchBridgeOwn(menu);
++    return result;
++}
++
++// Platin Touch: zeigt die App das Menü unten an, verschwindet es oben (nach der Eingabe,
++// damit ein frisch gezeichneter Cursor nicht kurz aufblitzt).
++static void TouchBridgeOwn(Menu *menu)
++{
++    if (menu->template.window == NULL) {
++        return;
++    }
++
++    int style = 0;
++
++    if (menu->template.xSize == 1 && menu->template.ySize == 2 && menu->template.choices[0].index == 0 && menu->template.choices[1].index == MENU_CANCEL) {
++        style = 1; // Ja/Nein
++    }
++
++    TouchBridge_OwnMenuWindow(menu->template.window, menu->xOffset, Font_GetAttribute(menu->template.fontID, FONTATTR_BG_COLOR), style, FALSE);
++}
++
++static u32 ProcessInputInner(Menu *menu)
+ {
+     menu->lastAction = MENU_ACTION_NONE;
+ 
++    int touched = TryTouchSelect(menu);
++    if (touched >= 0) {
++        Sound_PlayEffect(SE_CONFIRM_sseq_3);
++        return menu->template.choices[touched].callbackFunction;
++    }
++
+     if (JOY_NEW(PAD_BUTTON_A)) {
+         Sound_PlayEffect(SE_CONFIRM_sseq_3);
+         return menu->template.choices[menu->cursorPos].callbackFunction;
+@@ -113,10 +157,16 @@ u32 Menu_ProcessInput(Menu *menu)
+     return MENU_NOTHING_CHOSEN;
+ }
+ 
+-u32 Menu_ProcessInputWithSound(Menu *menu, u16 sdatID)
++static u32 ProcessInputWithSoundInner(Menu *menu, u16 sdatID)
+ {
+     menu->lastAction = MENU_ACTION_NONE;
+ 
++    int touched = TryTouchSelect(menu);
++    if (touched >= 0) {
++        Sound_PlayEffect(SE_CONFIRM_sseq_3);
++        return menu->template.choices[touched].index;
++    }
++
+     if (JOY_NEW(PAD_BUTTON_A)) {
+         Sound_PlayEffect(SE_CONFIRM_sseq_3);
+         return menu->template.choices[menu->cursorPos].index;
+@@ -193,6 +243,82 @@ u32 Menu_ProcessExternalInput(Menu *menu, u8 input)
+     return MENU_NOTHING_CHOSEN;
+ }
+ 
++// Platin Touch: Antippen eines Eintrags (über die TouchBridge) wählt ihn direkt aus.
++// Rückgabe: Eintrag (>= 0) oder -1 (kein Treffer / kein Antippen).
++static int TryTouchSelect(Menu *menu)
++{
++    Window *window = menu->template.window;
++
++    if (window == NULL || menu->template.xSize == 0 || menu->template.ySize == 0) {
++        return -1;
++    }
++
++    int screen = TouchBridge_LayerScreen(window->bgLayer);
++    int originX = window->tilemapLeft * 8 - Bg_GetXOffset(window->bgConfig, window->bgLayer);
++    int originY = window->tilemapTop * 8 - Bg_GetYOffset(window->bgConfig, window->bgLayer);
++    int rowH = menu->lineHeight + menu->template.lineSpacing;
++    int colW = menu->width + menu->letterWidth * 2;
++    int width = window->width * 8;
++    int height = window->height * 8;
++
++    if (rowH <= 0) {
++        rowH = 16;
++    }
++
++    TouchBridge_NoteMenu(TB_MENU_MENU, screen, originX, originY, width, height, menu->template.ySize, menu->template.xSize, menu->cursorPos, rowH, originX, originY + menu->yOffset, colW, 0, menu->template.xSize * menu->template.ySize);
++
++    int tapX, tapY;
++    if (!TouchBridge_TakeTap(screen, &tapX, &tapY)) {
++        return -1;
++    }
++
++    // etwas Spielraum um das Fenster (Rahmen)
++    if (tapX < originX - 6 || tapX >= originX + width + 6 || tapY < originY - 6 || tapY >= originY + height + 6) {
++        TouchBridge_TapResult(TB_TAP_MISS);
++        return -1;
++    }
++
++    int row = (tapY - (originY + menu->yOffset)) / rowH;
++    if (tapY < originY + menu->yOffset) {
++        row = 0;
++    }
++    if (row >= menu->template.ySize) {
++        row = menu->template.ySize - 1;
++    }
++
++    int col = 0;
++    if (menu->template.xSize > 1 && colW > 0) {
++        col = (tapX - originX) / colW;
++        if (tapX < originX) {
++            col = 0;
++        }
++        if (col >= menu->template.xSize) {
++            col = menu->template.xSize - 1;
++        }
++    }
++
++    int pos = col * menu->template.ySize + row;
++
++    if (menu->template.choices[pos].index == MENU_HEADER) {
++        TouchBridge_TapResult(TB_TAP_MISS);
++        return -1;
++    }
++
++    if (pos != menu->cursorPos) {
++        u8 x, y;
++        u8 bgColor = Font_GetAttribute(menu->template.fontID, FONTATTR_BG_COLOR);
++
++        CalcCursorDrawCoords(menu, &x, &y, menu->cursorPos);
++        Window_FillRectWithColor(menu->template.window, bgColor, x, y, 8, menu->lineHeight);
++        menu->cursorPos = pos;
++        DrawCursor(menu);
++        Window_ScheduleCopyToVRAM(menu->template.window);
++    }
++
++    TouchBridge_TapResult(TB_TAP_HIT);
++    return pos;
++}
++
+ u8 Menu_GetCursorPos(Menu *menu)
+ {
+     return menu->cursorPos;
+diff --git a/src/render_text.c b/src/render_text.c
+index 8a98037d..42523132 100644
+--- a/src/render_text.c
++++ b/src/render_text.c
+@@ -12,6 +12,7 @@
+ #include "sound_playback.h"
+ #include "system.h"
+ #include "text.h"
++#include "touch_bridge.h"
+ 
+ #define SPEED_UP_ON_TOUCH_PRESS (gSystem.touchPressed && sRenderControlFlags.speedUpOnTouch)
+ #define SPEED_UP_ON_TOUCH_HOLD  (gSystem.touchHeld && sRenderControlFlags.speedUpOnTouch)
+@@ -44,6 +45,8 @@ enum RenderResult RenderText(TextPrinter *printer)
+     TextPrinterSubstruct *substruct = (TextPrinterSubstruct *)printer->substruct;
+     charcode_t currChar;
+ 
++    TouchBridge_NoteText(printer->state == RENDER_STATE_WAIT);
++
+     switch (printer->state) {
+     case RENDER_STATE_HANDLE_CHAR:
+         if ((JOY_HELD(PAD_BUTTON_A | PAD_BUTTON_B) && substruct->speedUp) || SPEED_UP_ON_TOUCH_HOLD) {
+@@ -379,6 +382,8 @@ void TextPrinter_ClearScrollArrow(TextPrinter *printer)
+ 
+ static BOOL TextPrinter_Continue(TextPrinter *printer)
+ {
++    TouchBridge_NoteText(TRUE);
++
+     if (JOY_NEW(PAD_BUTTON_A | PAD_BUTTON_B)
+         || (gSystem.touchPressed && sRenderControlFlags.speedUpOnTouch)) {
+         Sound_PlayEffect(SE_CONFIRM_sseq_3);
+diff --git a/src/start_menu.c b/src/start_menu.c
+index f2d0b06a..88fdbe67 100644
+--- a/src/start_menu.c
++++ b/src/start_menu.c
+@@ -85,6 +85,7 @@
+ #include "unk_0205C22C.h"
+ #include "unk_0206B9D8.h"
+ #include "vars_flags.h"
++#include "touch_bridge.h"
+ 
+ #include "res/graphics/start_menu/start_menu.naix"
+ #include "res/text/bank/easy_chat.h"
+@@ -690,6 +691,20 @@ static BOOL StartMenu_Select(FieldTask *fieldTask)
+     menu->input = Menu_ProcessInputWithSound(menu->menu, SEQ_SE_DP_SELECT78_sseq);
+     menu->cursorPos = Menu_GetCursorPos(menu->menu);
+ 
++    // Platin Touch: zeigt die App das Menü unten an, verschwinden oben auch Cursor und Symbole
++    {
++        static BOOL sIconsHidden = FALSE;
++        BOOL owned = TouchBridge_MenuOwned();
++
++        if (owned || sIconsHidden) {
++            for (u16 i = 0; i < menu->spriteCount; i++) {
++                Sprite_SetDrawFlag(menu->sprites[i]->sprite, !owned);
++            }
++
++            sIconsHidden = owned;
++        }
++    }
++
+     if (prevPos != menu->cursorPos) {
+         StartMenu_SetCursorPos(menu->sprites[CURSOR_SPRITE_INDEX]->sprite, menu->cursorPos);
+         StartMenu_ChangeActiveMenuIcon(menu, prevPos, menu->cursorPos);
+diff --git a/src/touch_bridge.c b/src/touch_bridge.c
+new file mode 100644
+index 00000000..f3af3a0e
+--- /dev/null
++++ b/src/touch_bridge.c
+@@ -0,0 +1,311 @@
++#include "touch_bridge.h"
++
++#include <nitro.h>
++#include <nnsys.h>
++
++#include "constants/map_object.h"
++
++#include "field/field_system.h"
++
++#include "map_object.h"
++#include "player_avatar.h"
++#include "system.h"
++
++// Platin Touch – Spielseite der Brücke zur Handy-App (siehe include/touch_bridge.h).
++
++TouchBridge gTouchBridge;
++
++static u8 sLastSeq;
++static u8 sPending;
++static u8 sPendingAge;
++static u8 sPendingScreen;
++static u8 sPendingX;
++static u8 sPendingY;
++static u8 sPendingSeq;
++
++void TouchBridge_Init(void)
++{
++    MI_CpuClear8(&gTouchBridge, sizeof(TouchBridge));
++    gTouchBridge.version = TOUCH_BRIDGE_VERSION;
++    gTouchBridge.size = sizeof(TouchBridge);
++    gTouchBridge.systemAddr = (u32)&gSystem;
++    sLastSeq = 0;
++    sPending = FALSE;
++    // Kennung zuletzt schreiben: erst dann ist die Struktur für die App gültig
++    gTouchBridge.magic1 = TOUCH_BRIDGE_MAGIC1;
++    gTouchBridge.magic0 = TOUCH_BRIDGE_MAGIC0;
++}
++
++static void FinishTap(u8 result)
++{
++    gTouchBridge.tapResult = result;
++    gTouchBridge.tapAck = sPendingSeq;
++    sPending = FALSE;
++}
++
++void TouchBridge_Frame(void)
++{
++    TouchBridge *tb = &gTouchBridge;
++
++    tb->frame++;
++    tb->dispSelect = (u8)GX_GetDispSelect();
++    tb->screen3D = gSystem.whichScreenIs3D;
++
++    if (sPending) {
++        // Ein Bild lang hat kein Menü das Antippen abgeholt.
++        u32 sinceMenu = tb->frame - tb->menuFrame;
++
++        BOOL inBattle = tb->frame - tb->battleFrame <= 3;
++        BOOL textWaiting = tb->frame - tb->textWaitFrame <= 3;
++
++        // Im Kampf löst Tippen oben nur "weiter" aus, wenn ein Text wartet: sonst würde
++        // es im Kampfmenü versehentlich KAMPF/Attacke wählen (das Menü ist unten).
++        if (sPendingScreen == 0 && (tb->appFlags & TB_APP_TAP_IS_A) && sinceMenu > 3 && (s32)(tb->frame - tb->noTapAUntil) > 0 && (!inBattle || textWaiting)) {
++            // Kein Menü offen: Antippen des oberen Bildschirms = A (Text weiter, ansprechen, bestätigen)
++            gSystem.pressedKeys |= PAD_BUTTON_A;
++            gSystem.heldKeys |= PAD_BUTTON_A;
++            gSystem.pressedKeysRepeatable |= PAD_BUTTON_A;
++            tb->tapsAsA++;
++            FinishTap(TB_TAP_BUTTON);
++        } else {
++            FinishTap(TB_TAP_DROPPED);
++        }
++    }
++
++    if (tb->tapSeq != sLastSeq) {
++        sLastSeq = tb->tapSeq;
++        sPending = TRUE;
++        sPendingAge = 0;
++        sPendingSeq = tb->tapSeq;
++        sPendingScreen = tb->tapScreen ? 1 : 0;
++        sPendingX = tb->tapX;
++        sPendingY = tb->tapY;
++    }
++}
++
++BOOL TouchBridge_TakeTap(int screen, int *outX, int *outY)
++{
++    if (!sPending || sPendingScreen != screen) {
++        return FALSE;
++    }
++
++    *outX = sPendingX;
++    *outY = sPendingY;
++    return TRUE;
++}
++
++void TouchBridge_TapResult(u8 result)
++{
++    if (!sPending) {
++        return;
++    }
++
++    if (result == TB_TAP_HIT || result == TB_TAP_SCROLL) {
++        gTouchBridge.tapsHit++;
++    }
++
++    FinishTap(result);
++}
++
++int TouchBridge_LayerScreen(u8 bgLayer)
++{
++    BOOL isMain = bgLayer < 4;
++    BOOL mainOnTop = GX_GetDispSelect() == GX_DISP_SELECT_MAIN_SUB;
++
++    return (isMain == mainOnTop) ? 0 : 1;
++}
++
++void TouchBridge_NoteMenu(u8 kind, u8 screen, int x, int y, int w, int h, int rows, int cols, int cursor, int rowH, int itemX0, int itemY0, int colW, int listPos, int listCount)
++{
++    TouchBridge *tb = &gTouchBridge;
++
++    if (tb->menuFrame != tb->frame) {
++        tb->menusSeen++;
++    }
++
++    tb->menuKind = kind;
++    tb->menuScreen = screen;
++    tb->menuFrame = tb->frame;
++    tb->menuX = (s16)x;
++    tb->menuY = (s16)y;
++    tb->menuW = (u16)w;
++    tb->menuH = (u16)h;
++    tb->menuRows = (u8)rows;
++    tb->menuCols = (u8)cols;
++    tb->menuCursor = (u8)cursor;
++    tb->menuRowH = (u8)rowH;
++    tb->itemX0 = (s16)itemX0;
++    tb->itemY0 = (s16)itemY0;
++    tb->colW = (u16)colW;
++    tb->listPos = (u16)listPos;
++    tb->listCount = (u16)listCount;
++}
++
++void TouchBridge_SuppressTapA(void)
++{
++    gTouchBridge.noTapAUntil = gTouchBridge.frame + 2;
++}
++
++void TouchBridge_NoteText(BOOL waiting)
++{
++    gTouchBridge.textFrame = gTouchBridge.frame;
++
++    if (waiting) {
++        gTouchBridge.textWaitFrame = gTouchBridge.frame;
++    }
++}
++
++void TouchBridge_FieldFrame(FieldSystem *fieldSystem)
++{
++    TouchBridge *tb = &gTouchBridge;
++
++    if (fieldSystem == NULL || fieldSystem->playerAvatar == NULL || fieldSystem->mapObjMan == NULL) {
++        return;
++    }
++
++    tb->fieldFrame = tb->frame;
++    tb->playerX = (s16)PlayerAvatar_GetXPos(fieldSystem->playerAvatar);
++    tb->playerZ = (s16)PlayerAvatar_GetZPos(fieldSystem->playerAvatar);
++    tb->playerDir = (u8)PlayerAvatar_GetFacingDir(fieldSystem->playerAvatar);
++
++    // Figuren nur, wenn die 3D-Welt oben zu sehen ist
++    int count = 0;
++
++    if (GX_GetDispSelect() == GX_DISP_SELECT_MAIN_SUB) {
++        MapObject *player = PlayerAvatar_GetMapObject(fieldSystem->playerAvatar);
++        MapObject *mapObj = NULL;
++        int idx = 0;
++
++        while (count < TB_MAX_NPCS && MapObjectMan_FindObjectWithStatus(fieldSystem->mapObjMan, &mapObj, &idx, MAP_OBJ_STATUS_0)) {
++            if (mapObj == player || MapObject_IsHidden(mapObj)) {
++                continue;
++            }
++
++            VecFx32 pos;
++            int sx, sy;
++
++            MapObject_GetPosPtr(mapObj, &pos);
++
++            if (NNS_G3dWorldPosToScrPos(&pos, &sx, &sy) != 0) {
++                continue; // nicht im Bild
++            }
++
++            tb->npcs[count].screenX = (s16)sx;
++            tb->npcs[count].screenY = (s16)sy;
++            tb->npcs[count].tileX = (s16)MapObject_GetX(mapObj);
++            tb->npcs[count].tileZ = (s16)MapObject_GetZ(mapObj);
++            count++;
++        }
++    }
++
++    tb->npcCount = (u8)count;
++}
++
++void TouchBridge_NoteBattle(void)
++{
++    gTouchBridge.battleFrame = gTouchBridge.frame;
++}
++
++// ---- Menüs unten in der App ----
++
++// Index im Tilemap-Puffer einer Text-Ebene (wie in bg_window.c)
++static int TilemapIndex(int x, int y)
++{
++    return ((y & 0x20) * 32) + ((x & 0x20) * 32) + ((y & 0x1F) * 32) + (x & 0x1F);
++}
++
++void TouchBridge_NoteBottomFree(void)
++{
++    gTouchBridge.bottomFreeFrame = gTouchBridge.frame;
++}
++
++BOOL TouchBridge_OwnMenuWindow(Window *window, int labelX, int bgIndex, int style, BOOL isList)
++{
++    TouchBridge *tb = &gTouchBridge;
++
++    if (isList && tb->frame - tb->bottomFreeFrame > 2) {
++        return FALSE;
++    }
++
++    if (!(tb->appFlags & TB_APP_MENUS_BOTTOM) || window == NULL || window->bgConfig == NULL || window->pixels == NULL) {
++        return FALSE;
++    }
++
++    if (window->bgLayer >= BG_LAYER_MAX || TouchBridge_LayerScreen(window->bgLayer) != 0) {
++        return FALSE;
++    }
++
++    if (window->colorMode != BG_COLOR_MODE_4BPP || window->width == 0 || window->height == 0 || window->width > 32 || window->height > 24) {
++        return FALSE;
++    }
++
++    BgConfig *bgConfig = window->bgConfig;
++    Background *bg = &bgConfig->bgs[window->bgLayer];
++
++    if (bg->type == BG_TYPE_AFFINE || bg->tilemapBuffer == NULL) {
++        return FALSE;
++    }
++
++    // Fenster samt Rahmen (eine Kachel ringsum) oben ausblenden. Nur wenn dort noch etwas steht,
++    // sonst würde jedes Bild unnötig neu übertragen.
++    int x0 = window->tilemapLeft - 1;
++    int y0 = window->tilemapTop - 1;
++    int x1 = window->tilemapLeft + window->width + 1;
++    int y1 = window->tilemapTop + window->height + 1;
++
++    if (x0 < 0) {
++        x0 = 0;
++    }
++    if (y0 < 0) {
++        y0 = 0;
++    }
++    if (x1 > 32) {
++        x1 = 32;
++    }
++    if (y1 > 32) {
++        y1 = 32;
++    }
++
++    u16 *tilemap = bg->tilemapBuffer;
++    u32 entries = bg->bufferSize / 2;
++    BOOL dirty = FALSE;
++
++    for (int y = y0; y < y1 && !dirty; y++) {
++        for (int x = x0; x < x1; x++) {
++            u32 idx = TilemapIndex(x, y);
++
++            if (idx < entries && tilemap[idx] != 0) {
++                dirty = TRUE;
++                break;
++            }
++        }
++    }
++
++    if (dirty) {
++        Bg_FillTilemapRect(bgConfig, window->bgLayer, 0, x0, y0, x1 - x0, y1 - y0, 0);
++        Bg_CopyTilemapBufferToVRAM(bgConfig, window->bgLayer);
++    }
++
++    // Beschreibung für die App
++    const u16 *pltt = (const u16 *)((window->bgLayer < 4 ? HW_BG_PLTT : HW_DB_BG_PLTT) + window->palette * 32);
++
++    for (int i = 0; i < 16; i++) {
++        tb->pal[i] = pltt[i];
++    }
++
++    tb->pixAddr = (u32)window->pixels;
++    tb->tilesW = window->width;
++    tb->tilesH = window->height;
++    tb->colorMode = 0;
++    tb->menuStyle = (u8)style;
++    tb->labelX = (u8)(labelX < 0 ? 0 : labelX);
++    tb->bgIndex = (u8)bgIndex;
++    tb->ownFrame = tb->frame;
++
++    return TRUE;
++}
++
++BOOL TouchBridge_MenuOwned(void)
++{
++    return gTouchBridge.ownFrame == gTouchBridge.frame && gTouchBridge.frame != 0;
++}
+-- 
+2.43.0
+
