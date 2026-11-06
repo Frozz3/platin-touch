@@ -1,0 +1,10 @@
+{
+  "items": [
+    {"name": "ROM (Platin US)", "pct": 100, "detail": "fertig, entspricht dem Original"},
+    {"name": "3DS-Toolchain", "pct": 100, "detail": "fertig"},
+    {"name": "Emulator (Azahar)", "pct": 100, "detail": "fertig"},
+    {"name": "Platin für den 3DS", "pct": 100, "detail": "erstellt: pokeplatinum.3dsx + .cia"}
+  ],
+  "note": "Meilenstein 1 erreicht: Platin l\u00e4uft als native 3DS-App (im Emulator bis zum Intro getestet). Test-Dateien sind im Chat. N\u00e4chster Schritt: Messung auf dem echten New 3DS XL.",
+  "updated": "2026-11-06T16:11:13Z"
+}
